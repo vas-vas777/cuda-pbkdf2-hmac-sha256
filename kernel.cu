@@ -44,7 +44,7 @@ int main()
     const int a[arraySize] = { 1, 2, 3, 4, 5 };
     const int b[arraySize] = { 10, 20, 30, 40, 50 };
     int c[arraySize] = { 0 };*/
-    std::cout << '0' + '1' << std::endl;
+   // std::cout << '0' + '1' << std::endl;
     //cudaError_t cudaStatus;
     std::string password = "1234";
     std::string binary_str;
@@ -74,17 +74,17 @@ int main()
     std::vector<int>length_pass_in_binary;
     int bit;
     size_t number_of_bits_password = binary_passwd.size();
-    while (number_of_bits_password != 0)
+    while (number_of_bits_password != 0)//перевод длины пароля в двоичную запись
     {
         bit = number_of_bits_password % 2 ? 1 : 0;
         length_pass_in_binary.push_back(bit);
         number_of_bits_password /= 2;
     }
-    for (auto i = 0; i < 64 - length_pass_in_binary.size(); ++i)
+    for (auto i = 0; i < 64 - length_pass_in_binary.size(); ++i)//добавляем нули 
     {
         pass.push_back('0');
     }
-    for (auto i = 0; i <length_pass_in_binary.size(); ++i)
+    for (auto i = 0; i <length_pass_in_binary.size(); ++i)//добовляем все в общую двоичную строку
     {
         pass.push_back((char)(length_pass_in_binary[length_pass_in_binary.size()-1-i])+48);
     }
@@ -97,7 +97,7 @@ int main()
     }
     std::cout << std::endl;
    // thrust::copy(hash_output.begin(), hash_output.end(), &bin_str_512[0]);
-    std::string message_schedule[64];
+    std::string message_schedule[64];//создаём массив 64 строк по 32 бита. первые 16 строк по 32 бита из pass. Остальные нули - 48 строк
     for (auto i = 0; i < 64; ++i)
     {
         if (i < 16)
@@ -120,7 +120,7 @@ int main()
         std::cout << i << std::endl;
     }
     std::cout << std::endl;
-    char message_schedule_d[64][32];
+    char message_schedule_d[64][32]; //копируем из массива std::string message_schedule[64] char message_schedule_d[64][32] для дальнейших вычислений в cuda __global__ void addKerne
     for (auto i = 0; i < 64; ++i)
     {
         for (auto j = 0; j < 32; ++j)
