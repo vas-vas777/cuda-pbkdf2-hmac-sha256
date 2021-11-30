@@ -176,12 +176,16 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
 
     //memcpy(binary_str, password_xor_with_ipad, 512);
     std::cout << std::endl;
-    for (auto i = 0; i < 1024; ++i)
+    for (auto i = 0; i < 512; ++i)
     {
-        std::cout << binary_str[i];
+        std::cout << password_xor_with_ipad[i];
     }
     std::cout << std::endl;
-    memcpy(binary_str, password_xor_with_ipad, 256);
+
+    memcpy(binary_str, password_xor_with_ipad, 8 * 512);
+    binary_str[769] = 1;
+    binary_str[1014] = 1;
+    binary_str[1015] = 1;
     //memmove(binary_str, password_xor_with_ipad, 512);
     for (auto i = 0; i < 1024; ++i)
     {
@@ -283,6 +287,31 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
     //return w;
 }
 
+ __host__ void preparation_sha256_with_OPAD(__int64* password_xor_with_opad, __int64* hash)
+ {
+     __int64* binary_str = new __int64[1024]{ 0 };
+
+     //memcpy(binary_str, password_xor_with_ipad, 512);
+     std::cout << std::endl;
+     for (auto i = 0; i < 512; ++i)
+     {
+         std::cout << password_xor_with_opad[i];
+     }
+     std::cout << std::endl;
+
+     memcpy(binary_str, password_xor_with_opad, 8 * 512);
+     binary_str[768] = 1;
+     binary_str[1014] = 1;
+     binary_str[1015] = 1;
+     memcpy(binary_str + 512, hash, 8 * 256);
+     //memmove(binary_str, password_xor_with_ipad, 512);
+     for (auto i = 0; i < 1024; ++i)
+     {
+         std::cout << binary_str[i];
+     }
+     std::cout << std::endl;
+ }
+
 __global__ void addKernel(char* binary_pass, int length_block)
 {
     
@@ -295,8 +324,8 @@ int main()
    
     std::string password = "1234";
     __int64* password_xor_with_ipad = password_xor_with_IPAD("1234", 4);
-    __int64* prev_hash_u = new __int64[256]{ 2 };
-    preparation_sha256_with_IPAD(password_xor_with_ipad, prev_hash_u);
+    __int64* prev_hash_u = new __int64[256]{ 0 };
+    preparation_sha256_with_OPAD(password_xor_with_ipad, prev_hash_u);
     //password_xor_with_IPAD("1234", 4);
     // Add vectors in parallel.
     /*cudaError_t cudaStatus = addWithCuda(bin_str_512, 512);
@@ -338,39 +367,39 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
     }
 
     // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_binary_pass, length_block *sizeof(char));
+    cudaStatus = cudaMalloc((void**)&dev_binary_pass, length_block * sizeof(char));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-   /* cudaStatus = cudaMalloc((void**)&dev_hash_output, length_block * sizeof(char));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }*/
+    /* cudaStatus = cudaMalloc((void**)&dev_hash_output, length_block * sizeof(char));
+     if (cudaStatus != cudaSuccess) {
+         fprintf(stderr, "cudaMalloc failed!");
+         goto Error;
+     }*/
 
-    /*cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }*/
+     /*cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
+     if (cudaStatus != cudaSuccess) {
+         fprintf(stderr, "cudaMalloc failed!");
+         goto Error;
+     }*/
 
-    // Copy input vectors from host memory to GPU buffers.
+     // Copy input vectors from host memory to GPU buffers.
     cudaStatus = cudaMemcpy(dev_binary_pass, binary_pass, length_block * sizeof(char), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-   /* cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }*/
+    /* cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
+     if (cudaStatus != cudaSuccess) {
+         fprintf(stderr, "cudaMemcpy failed!");
+         goto Error;
+     }*/
 
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<16, 16 >>>(dev_binary_pass,length_block);
+     // Launch a kernel on the GPU with one thread for each element.
+    addKernel << <16, 16 >> > (dev_binary_pass, length_block);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -378,7 +407,7 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
         fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
-    
+
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
     // any errors encountered during the launch.
     cudaStatus = cudaDeviceSynchronize();
@@ -396,8 +425,8 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
 
 Error:
     cudaFree(dev_binary_pass);
-   // cudaFree(dev_hash_output);
-    //cudaFree(dev_b);
-    
+    // cudaFree(dev_hash_output);
+     //cudaFree(dev_b);
+
     return cudaStatus;
 }
