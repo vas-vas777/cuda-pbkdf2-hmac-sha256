@@ -11,15 +11,15 @@
 #include <thrust/copy.h>
 
 
-/*auto h0 = 0x6a09e667;
-    auto  h1 = 0xbb67ae85;
-    auto  h2 = 0x3c6ef372;
-    auto  h3 = 0xa54ff53a;
-    auto  h4 = 0x510e527f;
-    auto  h5 = 0x9b05688c;
-    auto  h6 = 0x1f83d9ab;
-    auto  h7 = 0x5be0cd19;
-    int round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+__int64 h0[] = { 0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,1,1 };
+__int64 h1[] = { 1,0,1,1,1,0,1,1,0,1,1,0,0,1,1,1,1,0,1,0,1,1,1,0,1,0,0,0,0,1,0,1 };
+__int64 h2[] = { 0,0,1,1,1,1,0,0,0,1,1,0,1,1,1,0,1,1,1,1,0,0,1,1,0,1,1,1,0,0,1,0 };
+__int64 h3[] = { 1,0,1,0,0,1,0,1,0,1,0,0,1,1,1,1,1,1,1,1,0,1,0,1,0,0,1,1,1,0,1,0 };  
+__int64 h4[] = { 0,1,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0,0,1,0,0,1,1,1,1,1,1,1 };
+__int64 h5[] = { 1,0,0,1,1,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,1,0,0,0,1,0,0,0,1,1,0,0 };
+__int64 h6[] = { 0,0,0,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,1,0,1,1 };
+__int64 h7[] = { 0,1,0,1,1,0,1,1,1,1,1,0,0,0,0,0,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,1 };
+__int64 round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
                             0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
                             0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
                             0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
@@ -28,10 +28,113 @@
                             0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
                             0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 };
 
-    int index = threadIdx.x;
-    int w[64] = {};*/
 
 cudaError_t addWithCuda(char* binary_pass, int length_block);
+
+__host__ __int64* to_binary_32bit(__int64 number)
+{
+    __int64* binary_str = new __int64[32]{ 0 };
+    int count = 31;
+    //std::cout << number << std::endl;
+    while (number!=0)
+    {
+        //std::cout << count << std::endl;
+        binary_str[count] = number % 2;
+        number /= 2;
+        count--;
+    }
+    /*for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << binary_str[i];
+    }*/
+    return binary_str;
+    delete[] binary_str;
+}
+
+__host__ __int64 sum_strs_32bit(__int64* str1, __int64* str2)
+{
+    //__int64* result_sum = new __int64[32]{ 0 };
+    __int64 number1 = 0;
+    __int64 number2 = 0;
+    for (auto i = 0; i < 32; ++i)
+    {
+        number1 += str1[i] * pow(2, (31 - i));
+    }
+    for (auto i = 0; i < 32; ++i)
+    {
+        number2 += str2[i] * pow(2, (31 - i));
+    }
+    //std::cout << number1 << std::endl;
+    //std::cout << number2 << std::endl;
+    number2 = (number1 + number2) % 4294967296;
+
+    //std::cout << number2 << std::endl;
+    return number2;
+   // delete[]result_sum;
+    //delete[]result_sum;
+}
+
+__host__ __int64* xor_strs_32bit(__int64* str1, __int64* str2)
+{
+    __int64* result_xor = new __int64[32]{ 0 };
+    for (auto i = 0; i < 32; ++i)
+    {
+        result_xor[i] = str1[i] ^ str2[i];
+    }
+    return result_xor;
+    delete[]result_xor;
+}
+
+__host__ __int64* rigth_rotate(__int64* str,unsigned int num)
+{
+    __int64 last = 0;
+    __int64* rotated_str = new __int64[32]{ 0 };
+    for (unsigned int count = 0; count < num; ++count)
+    {
+        last = rotated_str[31];
+        for (auto i = 31; i > 0; i--)
+        {
+            rotated_str[i] = rotated_str[i - 1];
+        }
+        rotated_str[0] = last;
+    }
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << str[i];
+    }
+    return rotated_str;
+    delete[] rotated_str;
+}
+
+__host__ __int64* rigth_shift(__int64* str, unsigned int num)
+{
+    //__int64 last = 0;
+   // for (auto count = 0; count < num; ++count)
+   // {
+       // last = str[31];
+    __int64* shifted_str = new __int64[32]{ 0 };
+        for (unsigned int i = 31; i > 0; --i)
+        {
+            if (i >= num)
+            {
+                shifted_str[i] = shifted_str[i - num];
+            }
+            else
+            {
+                shifted_str[i] = 0;
+            }
+        }
+       // str[0] = last;
+  //  }
+    /*for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << shifted_str[i];
+    }*/
+    return shifted_str;
+    delete[] shifted_str;
+}
+
+
 
 __host__ __int64* password_xor_with_IPAD(char* password,int length)
 {
@@ -74,7 +177,10 @@ __host__ __int64* password_xor_with_IPAD(char* password,int length)
     }
     std::cout << std::endl;
     std::cout << sizeof(binary_str) << std::endl;
+    
     return binary_str;
+    delete[] binary_str;
+    delete[] ipad;
     //std::string binary_str = {};
     //std::string IPAD = {};
     ////std::cout << binary_pass << std::endl;
@@ -98,15 +204,14 @@ __host__ __int64* password_xor_with_IPAD(char* password,int length)
     //binary_str = (std::bitset<512>(binary_str) ^ std::bitset<512>(IPAD)).to_string();
     //return binary_str;
     //std::cout << binary_str << std::endl;
-    delete[] binary_str;
-    delete[] ipad;
+    
 }
 
-__device__ int* password_xor_with_OPAD(char* password, int length)
+__host__ __int64* password_xor_with_OPAD(char* password, int length)
 {
-    int* binary_str = new int[512]{ 0 };
-    int OPAD [] = { 0,1,0,1,1,1,0,0 };
-    int* opad = new int[512]{ 0 };
+    __int64* binary_str = new __int64[512]{ 0 };
+    __int64 OPAD [] = { 0,1,0,1,1,1,0,0 };
+    __int64* opad = new __int64[512]{ 0 };
     for (auto i = 0; i < 512; ++i)
     {
         if (i < 8 * length)
@@ -142,7 +247,7 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
         std::cout << binary_str[i];
     }*/
 
-
+    
     return binary_str;
     delete[] binary_str;
     delete[] opad;
@@ -170,19 +275,18 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
     //return binary_str;
 }
 
- __host__ void preparation_sha256_with_IPAD(__int64* password_xor_with_ipad, __int64*prev_hash)
+ __host__ __int64* preparation_sha256_with_IPAD(__int64* password_xor_with_ipad, __int64*prev_hash)
 {
      __int64* binary_str = new __int64[1024]{ 0 };
-
+     //__int64* output_message = new __int64[2048]{ 0 };
     //memcpy(binary_str, password_xor_with_ipad, 512);
     std::cout << std::endl;
-    for (auto i = 0; i < 512; ++i)
+    for (auto i = 0; i < 1024; ++i)
     {
-        std::cout << password_xor_with_ipad[i];
+        std::cout << binary_str[i];
     }
     std::cout << std::endl;
-
-    memcpy(binary_str, password_xor_with_ipad, 8 * 512);
+    memcpy(binary_str, password_xor_with_ipad, 8*512);
     binary_str[769] = 1;
     binary_str[1014] = 1;
     binary_str[1015] = 1;
@@ -192,6 +296,17 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
         std::cout << binary_str[i];
     }
     std::cout << std::endl;
+    //memcpy(output_message, binary_str, 8 * 1024);//копируем все 1024 бита сообщения
+   
+    //for (auto i = 0; i < 2048; ++i)
+    //{
+    //    std::cout << output_message[i];
+    //}
+    //std::cout << std::endl;
+    
+    return binary_str;
+    delete[] binary_str;
+    //delete[] output_message;
    /* memmove(binary_str+256, prev_hash, 256);
     for (auto i = 0; i < 1024; ++i)
     {
@@ -287,30 +402,134 @@ __device__ int* password_xor_with_OPAD(char* password, int length)
     //return w;
 }
 
- __host__ void preparation_sha256_with_OPAD(__int64* password_xor_with_opad, __int64* hash)
- {
-     __int64* binary_str = new __int64[1024]{ 0 };
+__host__ __int64* preparation_sha256_with_OPAD(__int64* password_xor_with_opad, __int64* hash)
+{
+    __int64* binary_str = new __int64[1024]{ 0 };
+   // __int64* output_message = new __int64[2048]{ 0 };
+    //memcpy(binary_str, password_xor_with_ipad, 512);
+    std::cout << std::endl;
+    for (auto i = 0; i < 512; ++i)
+    {
+        std::cout << password_xor_with_opad[i];
+    }
+    std::cout << std::endl;
 
-     //memcpy(binary_str, password_xor_with_ipad, 512);
-     std::cout << std::endl;
-     for (auto i = 0; i < 512; ++i)
-     {
-         std::cout << password_xor_with_opad[i];
-     }
-     std::cout << std::endl;
+    memcpy(binary_str, password_xor_with_opad, 8 * 512);
+    binary_str[768] = 1;
+    binary_str[1014] = 1;
+    binary_str[1015] = 1;
+    memcpy(binary_str + 512, hash, 8 * 256);
+    //memmove(binary_str, password_xor_with_ipad, 512);
+    for (auto i = 0; i < 1024; ++i)
+    {
+        std::cout << binary_str[i];
+    }
+    std::cout << std::endl;
+    /*memcpy(output_message, binary_str, 8 * 1024);
 
-     memcpy(binary_str, password_xor_with_opad, 8 * 512);
-     binary_str[768] = 1;
-     binary_str[1014] = 1;
-     binary_str[1015] = 1;
-     memcpy(binary_str + 512, hash, 8 * 256);
-     //memmove(binary_str, password_xor_with_ipad, 512);
-     for (auto i = 0; i < 1024; ++i)
-     {
-         std::cout << binary_str[i];
-     }
-     std::cout << std::endl;
- }
+    for (auto i = 0; i < 2048; ++i)
+    {
+        std::cout << output_message[i];
+    }
+    std::cout << std::endl;*/
+
+    return binary_str;
+    delete[] binary_str;
+    //delete[] output_message;
+}
+
+__host__ void main_loop_sha256_with_ipad(__int64* message)
+{
+    __int64* part_message1 = new __int64[512];
+    __int64* part_message2 = new __int64[512];
+    memcpy(part_message1, message, 8 * 512);
+    memcpy(part_message2, message + 512, 8 * 512);
+    __int64** extend_part_message1 = new __int64* [64];
+    for (auto i = 0; i < 64; ++i)
+    {
+        extend_part_message1[i] = new __int64[32]{ 0 };
+    }
+
+
+    for (auto i = 0; i < 16; ++i)
+    {
+        memcpy(extend_part_message1[i], part_message1 + (i * 32), 8 * 32);
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+   
+    //__int64* str = new __int64[32]{ 0 };
+    __int64* s0 = new __int64[32]{ 0 };
+    __int64* s1 = new __int64[32]{ 0 };
+    __int64* S1 = new __int64[32]{ 0 };
+    __int64* ch = new __int64[32]{ 0 };
+    __int64* temp1 = new __int64[32]{ 0 };
+    __int64* S0 = new __int64[32]{ 0 };
+    __int64* maj = new __int64[32]{ 0 };
+    __int64* temp2 = new __int64[32]{ 0 };
+
+    __int64 sum_ext1_s0 = 0;
+    __int64 sum_ext2_s1 = 0;
+    __int64 sum_S0_maj = 0;
+    
+
+    /*for (auto i = 16; i < 64; ++i)
+    {
+        s0 = xor_strs_32bit(xor_strs_32bit(rigth_rotate(extend_part_message1[i - 15], 7), 
+            rigth_rotate(extend_part_message1[i - 15], 18)), 
+            rigth_shift(extend_part_message1[i - 15], 3));
+        s1= xor_strs_32bit(xor_strs_32bit(rigth_rotate(extend_part_message1[i - 2], 17),
+            rigth_rotate(extend_part_message1[i - 2], 19)),
+            rigth_shift(extend_part_message1[i - 2], 10));
+        sum_ext1_s0 = sum_strs_32bit(extend_part_message1[i - 16], s0);
+        sum_ext2_s1 = sum_strs_32bit(extend_part_message1[i - 7], s1);
+        sum_ext1_s0 = (sum_ext1_s0 + sum_ext2_s1) % 4294967296;
+        extend_part_message1[i] = to_binary_32bit(sum_ext1_s0);
+
+    }
+
+    __int64 a = h0;
+    __int64 b = h1;
+    __int64 c = h2;
+    __int64 d = h3;
+    __int64 e = h4;
+    __int64 f = h5;
+    __int64 g = h6;
+    __int64 h = h7;
+
+
+    for (auto i = 0; i < 64; ++i)
+    {
+        S1=
+    }*/
+    //for (auto j = 0; j < 32; ++j)
+    //{
+    //    std::cout << extend_part_message1[0][j];
+    //   // str[j] = extend_part_message1[0][j];
+    //}
+    //std::cout << std::endl;
+    //for (auto j = 0; j < 32; ++j)
+    //{
+    //    std::cout << extend_part_message1[1][j];
+    //    // str[j] = extend_part_message1[0][j];
+    //}
+    //std::cout << std::endl;
+    //sum_ext1_s0 = sum_strs_32bit(extend_part_message1[0], extend_part_message1[1]);
+    //to_binary_32bit(sum_ext1_s0);
+    /*std::cout << extend_part_message1[0] << std::endl;
+    std::cout << extend_part_message1[1] << std::endl;*/
+    //sum_strs_32bit(extend_part_message1[0], extend_part_message1[1]);
+    //std::cout << std::endl;
+    //rigth_shift(str, 7);
+    //delete[] str;
+    delete[] s0;
+    delete[] s1;
+    //}
+    //memcpy(extend_part_message1, part_message1, 8 * 512);
+    
+
+}
 
 __global__ void addKernel(char* binary_pass, int length_block)
 {
@@ -325,7 +544,8 @@ int main()
     std::string password = "1234";
     __int64* password_xor_with_ipad = password_xor_with_IPAD("1234", 4);
     __int64* prev_hash_u = new __int64[256]{ 0 };
-    preparation_sha256_with_OPAD(password_xor_with_ipad, prev_hash_u);
+    __int64* messsage=preparation_sha256_with_IPAD(password_xor_with_ipad, prev_hash_u);
+    main_loop_sha256_with_ipad(messsage);
     //password_xor_with_IPAD("1234", 4);
     // Add vectors in parallel.
     /*cudaError_t cudaStatus = addWithCuda(bin_str_512, 512);
@@ -367,39 +587,39 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
     }
 
     // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_binary_pass, length_block * sizeof(char));
+    cudaStatus = cudaMalloc((void**)&dev_binary_pass, length_block *sizeof(char));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    /* cudaStatus = cudaMalloc((void**)&dev_hash_output, length_block * sizeof(char));
-     if (cudaStatus != cudaSuccess) {
-         fprintf(stderr, "cudaMalloc failed!");
-         goto Error;
-     }*/
+   /* cudaStatus = cudaMalloc((void**)&dev_hash_output, length_block * sizeof(char));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }*/
 
-     /*cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-     if (cudaStatus != cudaSuccess) {
-         fprintf(stderr, "cudaMalloc failed!");
-         goto Error;
-     }*/
+    /*cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }*/
 
-     // Copy input vectors from host memory to GPU buffers.
+    // Copy input vectors from host memory to GPU buffers.
     cudaStatus = cudaMemcpy(dev_binary_pass, binary_pass, length_block * sizeof(char), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-    /* cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-     if (cudaStatus != cudaSuccess) {
-         fprintf(stderr, "cudaMemcpy failed!");
-         goto Error;
-     }*/
+   /* cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!");
+        goto Error;
+    }*/
 
-     // Launch a kernel on the GPU with one thread for each element.
-    addKernel << <16, 16 >> > (dev_binary_pass, length_block);
+    // Launch a kernel on the GPU with one thread for each element.
+    addKernel<<<16, 16 >>>(dev_binary_pass,length_block);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -407,7 +627,7 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
         fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
-
+    
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
     // any errors encountered during the launch.
     cudaStatus = cudaDeviceSynchronize();
@@ -425,8 +645,8 @@ cudaError_t addWithCuda(char* binary_pass, int length_block)
 
 Error:
     cudaFree(dev_binary_pass);
-    // cudaFree(dev_hash_output);
-     //cudaFree(dev_b);
-
+   // cudaFree(dev_hash_output);
+    //cudaFree(dev_b);
+    
     return cudaStatus;
 }
