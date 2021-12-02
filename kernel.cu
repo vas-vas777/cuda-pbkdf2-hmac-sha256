@@ -6,20 +6,9 @@
 #include <string>
 #include <bitset>
 #include <iostream>
-//#include <vector>
-//#include <thrust/host_vector.h>
-//#include <thrust/copy.h>
 
 
-__int64 *h0 = new __int64[] { 0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,1,1 };
-__int64 *h1 = new __int64[] { 1,0,1,1,1,0,1,1,0,1,1,0,0,1,1,1,1,0,1,0,1,1,1,0,1,0,0,0,0,1,0,1 };
-__int64 *h2 = new __int64[] { 0,0,1,1,1,1,0,0,0,1,1,0,1,1,1,0,1,1,1,1,0,0,1,1,0,1,1,1,0,0,1,0 };
-__int64 *h3 = new __int64[] { 1,0,1,0,0,1,0,1,0,1,0,0,1,1,1,1,1,1,1,1,0,1,0,1,0,0,1,1,1,0,1,0 };
-__int64 *h4 = new __int64[] { 0,1,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0,0,1,0,0,1,1,1,1,1,1,1 };
-__int64 *h5 = new __int64[] { 1,0,0,1,1,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,1,0,0,0,1,0,0,0,1,1,0,0 };
-__int64 *h6 = new __int64[] { 0,0,0,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,1,0,1,1 };
-__int64 *h7 = new __int64[] { 0,1,0,1,1,0,1,1,1,1,1,0,0,0,0,0,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,1 };
-__int64 round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+const __int64 round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
                             0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
                             0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
                             0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
@@ -48,29 +37,29 @@ __host__ __int64* to_binary_32bit(__int64 number)
         std::cout << binary_str[i];
     }*/
     return binary_str;
-    delete[] binary_str;
+    //delete[] binary_str;
 }
 
 __host__ __int64* and_strs_32bit(__int64* str1, __int64* str2)
 {
-    __int64 *result_str = new __int64[32];
+    __int64* result_str = new __int64[32]{ 0 };
     for (auto i = 0; i < 32; ++i)
     {
         result_str[i] = str1[i] & str2[i];
     }
     return result_str;
-    delete[] result_str;
+    //delete[] result_str;
 }
 
 __host__ __int64* inverse_str_32bit(__int64* str1)
 {
-    __int64* result_str = new __int64[32];
+    __int64* result_str = new __int64[32]{ 0 };
     for (auto i = 0; i < 32; ++i)
     {
         result_str[i] = ~str1[i];
     }
     return result_str;
-    delete[] result_str;
+    //delete[] result_str;
 }
 
 __host__ __int64 sum_strs_32bit(__int64* str1, __int64* str2)
@@ -104,14 +93,14 @@ __host__ __int64* xor_strs_32bit(__int64* str1, __int64* str2)
         result_xor[i] = str1[i] ^ str2[i];
     }
     return result_xor;
-    delete[]result_xor;
+    //delete[]result_xor;
 }
 
 __host__ __int64* rigth_rotate(__int64* str,unsigned int num)
 {
     __int64 last = 0;
-    __int64* rotated_str = new __int64[32]{ 0 };
-    for (unsigned int count = 0; count < num; ++count)
+    __int64* rotated_str = str;
+    for (unsigned int count = 1; count <= num; ++count)
     {
         last = rotated_str[31];
         for (auto i = 31; i > 0; i--)
@@ -119,13 +108,16 @@ __host__ __int64* rigth_rotate(__int64* str,unsigned int num)
             rotated_str[i] = rotated_str[i - 1];
         }
         rotated_str[0] = last;
+       /* std::cout <<count<< std::endl;
+        for (auto i = 0; i < 32; ++i)
+        {
+            std::cout << rotated_str[i];
+        }
+        std::cout << std::endl;*/
     }
-    /*for (auto i = 0; i < 32; ++i)
-    {
-        std::cout << str[i];
-    }*/
+    
     return rotated_str;
-    delete[] rotated_str;
+    //delete[] rotated_str;
 }
 
 __host__ __int64* rigth_shift(__int64* str, unsigned int num)
@@ -134,7 +126,7 @@ __host__ __int64* rigth_shift(__int64* str, unsigned int num)
    // for (auto count = 0; count < num; ++count)
    // {
        // last = str[31];
-    __int64* shifted_str = new __int64[32]{ 0 };
+    __int64* shifted_str = str;
         for (unsigned int i = 31; i > 0; --i)
         {
             if (i >= num)
@@ -153,7 +145,7 @@ __host__ __int64* rigth_shift(__int64* str, unsigned int num)
         std::cout << shifted_str[i];
     }*/
     return shifted_str;
-    delete[] shifted_str;
+    //delete[] shifted_str;
 }
 
 
@@ -202,8 +194,8 @@ __host__ __int64* password_xor_with_IPAD(char* password,int length)
     //std::cout << sizeof(binary_str) << std::endl;
     
     return binary_str;
-    delete[] binary_str;
-    delete[] ipad;
+   /* delete[] binary_str;
+    delete[] ipad;*/
     //std::string binary_str = {};
     //std::string IPAD = {};
     ////std::cout << binary_pass << std::endl;
@@ -301,16 +293,9 @@ __host__ __int64* password_xor_with_OPAD(char* password, int length)
  __host__ __int64* preparation_sha256_with_IPAD(__int64* password_xor_with_ipad, __int64*prev_hash)
 {
      __int64* binary_str = new __int64[1024]{ 0 };
-     //__int64* output_message = new __int64[2048]{ 0 };
-    //memcpy(binary_str, password_xor_with_ipad, 512);
-   /* std::cout << std::endl;
-    for (auto i = 0; i < 1024; ++i)
-    {
-        std::cout << binary_str[i];
-    }
-    std::cout << std::endl;*/
-    memcpy(binary_str, password_xor_with_ipad, 8*512);
-    binary_str[769] = 1;
+     memcpy(binary_str, password_xor_with_ipad, 8*512);
+    memcpy(binary_str + 512, prev_hash, 8 * 256);
+    binary_str[768] = 1;
     binary_str[1014] = 1;
     binary_str[1015] = 1;
     //memmove(binary_str, password_xor_with_ipad, 512);
@@ -329,104 +314,10 @@ __host__ __int64* password_xor_with_OPAD(char* password, int length)
     //std::cout << std::endl;
     
     return binary_str;
-    delete[] binary_str;
-    //delete[] output_message;
-   /* memmove(binary_str+256, prev_hash, 256);
-    for (auto i = 0; i < 1024; ++i)
-    {
-        std::cout << binary_str[i];
-    }*/
-
-    //std::string binary_str = password_xor_with_ipad;
-    //std::string binary_Ui = {};
-    //for (auto i = 0; i < Ui.size(); ++i)
-    //{
-    //    binary_Ui.append(std::bitset<8>(Ui.c_str()[i]).to_string());
-    //}
-    //binary_str = binary_str + binary_Ui;//512+256 bits=768bits
-    //int size_binary_str = binary_str.size();//length of input message (pass xor OPAD)||U(i-1))
-    //binary_str.append("1"); //add 1 bit =769 bit
-    //for (auto i = 0; i < 191; ++i) // add '0' multiple 512 => 769+191=960 mod 512 = 448 mod 512
-    //{
-    //    binary_str.append("0");
-    //}
-    //std::vector<int>length_pass_in_binary = {};//binary vector of size input message  
-    //int bit=0;
-    ////size_t number_of_bits_password = binary_.size();
-    //while (size_binary_str != 0)
-    //{
-    //    bit = size_binary_str % 2 ? 1 : 0;
-    //    length_pass_in_binary.push_back(bit);
-    //    size_binary_str /= 2;
-    //}
-    //for (auto i = 0; i < 64 - length_pass_in_binary.size(); ++i)//add last 64 bits, where 64 - length_pass_in_binary '0'
-    //{
-    //    binary_str.append("0");
-    //}
-    //for (auto i = 0; i < length_pass_in_binary.size(); ++i)//add binary vector of value input message
-    //{
-    //   binary_str.push_back((char)(length_pass_in_binary[length_pass_in_binary.size() - 1 - i]) + 48);
-    //}
-
-    //// std::cout << hash_output.size() << std::endl;
-    //// char* bin_str_512 = (char*)malloc(hash_output.size());
-    //for (auto i : binary_str)//output 1024 binary message
-    //{
-    //    std::cout << i;
-    //}
-    //std::cout << std::endl;
-    //char **w = new char*[64];
-    //for (auto i = 0; i < 64; ++i)
-    //    w[i] = new char[32];
-    //
-    //// thrust::copy(hash_output.begin(), hash_output.end(), &bin_str_512[0]);
-    ////std::string message_schedule[64];
-    ////for (auto i = 0; i < 64; ++i)
-    ////{
-    ////    if (i < 16)
-    ////    {
-    ////        for (auto j = 0; j < 32; ++j)
-    ////        {
-    ////            message_schedule[i] += pass[j + 32 * i];
-    ////        }
-    ////    }
-    ////    else
-    ////    {
-    ////        for (auto j = 0; j < 32; ++j)
-    ////        {
-    ////            message_schedule[i] += '0';
-    ////        }
-    ////    }
-    ////}
-    ////for (auto i : message_schedule)
-    ////{
-    ////    std::cout << i << std::endl;
-    ////}
-    ////std::cout << std::endl;
-    ////char message_schedule_d[64][32];
-    //int count=0;
-    //for (auto i = 0; i < 64; ++i)
-    //{
-    //    for (auto j = 0; j < 32; ++j)
-    //    {
-    //        //std::cout << i << " " << j << std::endl;
-    //        w[i][j] = binary_str[count];
-    //        count++;
-    //    }
-    //    count++;
-    //}
-    //for (auto i = 0; i < 64; ++i)
-    //{
-    //    for (auto j = 0; j < 32; ++j)
-    //    {
-    //        std::cout << w[i][j];
-    //    }
-    //    std::cout << std::endl;
-    //}
-    //return w;
+    
 }
 
-__host__ __int64* preparation_sha256_with_OPAD(__int64* password_xor_with_opad, __int64* hash)
+__host__ __int64* preparation_sha256_with_OPAD(__int64* password_xor_with_opad, __int64* prev_hash)
 {
     __int64* binary_str = new __int64[1024]{ 0 };
    // __int64* output_message = new __int64[2048]{ 0 };
@@ -439,35 +330,35 @@ __host__ __int64* preparation_sha256_with_OPAD(__int64* password_xor_with_opad, 
     std::cout << std::endl;*/
 
     memcpy(binary_str, password_xor_with_opad, 8 * 512);
+    memcpy(binary_str + 512, prev_hash, 8 * 256);
     binary_str[768] = 1;
     binary_str[1014] = 1;
     binary_str[1015] = 1;
-    memcpy(binary_str + 512, hash, 8 * 256);
-    //memmove(binary_str, password_xor_with_ipad, 512);
-    /*for (auto i = 0; i < 1024; ++i)
-    {
-        std::cout << binary_str[i];
-    }
-    std::cout << std::endl;*/
-    /*memcpy(output_message, binary_str, 8 * 1024);
-
-    for (auto i = 0; i < 2048; ++i)
-    {
-        std::cout << output_message[i];
-    }
-    std::cout << std::endl;*/
-
+   
     return binary_str;
-    delete[] binary_str;
-    //delete[] output_message;
+   
 }
 
 __host__ __int64* main_loop_sha256_with_ipad(__int64* message)
 {
+    __int64* h0 = new __int64[] { 0, 1, 1, 0,  1, 0, 1, 0,  0, 0, 0, 0,  1, 0, 0, 1,  1, 1, 1, 0,  0, 1, 1, 0,  0, 1, 1, 0,  0, 1, 1, 1 };
+    __int64* h1 = new __int64[] { 1, 0, 1, 1,  1, 0, 1, 1,  0, 1, 1, 0,  0, 1, 1, 1,  1, 0, 1, 0,  1, 1, 1, 0,  1, 0, 0, 0,  0, 1, 0, 1 };
+    __int64* h2 = new __int64[] { 0, 0, 1, 1,  1, 1, 0, 0,  0, 1, 1, 0,  1, 1, 1, 0,  1, 1, 1, 1,  0, 0, 1, 1,  0, 1, 1, 1,  0, 0, 1, 0 };
+    __int64* h3 = new __int64[] { 1, 0, 1, 0,  0, 1, 0, 1,  0, 1, 0, 0,  1, 1, 1, 1,  1, 1, 1, 1,  0, 1, 0, 1,  0, 0, 1, 1,  1, 0, 1, 0 };
+    __int64* h4 = new __int64[] { 0, 1, 0, 1,  0, 0, 0, 1,  0, 0, 0, 0,  1, 1, 1, 0,  0, 1, 0, 1,  0, 0, 1, 0,  0, 1, 1, 1,  1, 1, 1, 1 };
+    __int64* h5 = new __int64[] { 1, 0, 0, 1,  1, 0, 1, 1,  0, 0, 0, 0,  0, 1, 0, 1,  0, 1, 1, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1, 1, 0, 0 };
+    __int64* h6 = new __int64[] { 0, 0, 0, 1,  1, 1, 1, 1,  1, 0, 0, 0,  0, 0, 1, 1,  1, 1, 0, 1,  1, 0, 0, 1,  1, 0, 1, 0,  1, 0, 1, 1 };
+    __int64* h7 = new __int64[] { 0, 1, 0, 1,  1, 0, 1, 1,  1, 1, 1, 0,  0, 0, 0, 0,  1, 1, 0, 0,  1, 1, 0, 1,  0, 0, 0, 1,  1, 0, 0, 1 };
     __int64* part_message1 = new __int64[512]{ 0 };
     __int64* part_message2 = new __int64[512]{ 0 };
     memcpy(part_message1, message, 8 * 512);
     memcpy(part_message2, message + 512, 8 * 512);
+    std::cout << "message" << std::endl;
+    for (auto i = 0; i < 1024; ++i)
+    {
+        std::cout << message[i];
+    }
+    std::cout << std::endl;
     std::cout << "part_message1" << std::endl;
     for (auto i = 0; i < 512; ++i)
     {
@@ -501,7 +392,43 @@ __host__ __int64* main_loop_sha256_with_ipad(__int64* message)
     __int64* f = 0;
     __int64* g = 0;
     __int64* h = 0;
-
+   // std::cout << "h0" << std::endl;
+   // for (auto i = 0; i < 32; ++i)
+   // {
+   //     std::cout << h0[i];
+   // }
+   // std::cout << std::endl;
+   ///* std::cout << "h1" << std::endl;
+   // for (auto i = 0; i < 32; ++i)
+   // {
+   //     std::cout << h1[i];
+   // }
+   // std::cout << std::endl;*/
+   // s0 = rigth_shift(h0, 7);
+   // for (auto i = 0; i < 32; ++i)
+   // {
+   //     std::cout << s0[i];
+   // }
+    /*std::cout << "a" << std::endl;
+    
+    std::cout << "h1" << std::endl;
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << h1[i];
+    }
+    s1 = rigth_rotate(h1, 2);
+    std::cout << "b" << std::endl;
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << s1[i];
+    }
+    ch=xor_strs_32bit(rigth_rotate(h0, 7), rigth_rotate(h1, 18));
+    std::cout << "c-sum" << std::endl;
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << ch[i];
+    }*/
+   ///return h0;
     while (count < 3)
     {
         __int64** extend_part_message1 = new __int64* [64];
@@ -541,7 +468,6 @@ __host__ __int64* main_loop_sha256_with_ipad(__int64* message)
 
         //__int64* str = new __int64[32]{ 0 };
 
-
         // __int64 sum_S0_maj = 0;
         // __int64 res_sum_with_round_const = 0;
 
@@ -557,9 +483,15 @@ __host__ __int64* main_loop_sha256_with_ipad(__int64* message)
                 rigth_shift(extend_part_message1[i - 2], 10));
             //sum_ext1_s0 = 
             //sum_ext2_s1 = ;
+            //std::cout << sum_strs_32bit(extend_part_message1[i - 16], s0) << std::endl;
+            //std::cout << sum_strs_32bit(extend_part_message1[i - 7], s1) << std::endl;
             sum_ext1_2_s0_s1 = (sum_strs_32bit(extend_part_message1[i - 16], s0) + sum_strs_32bit(extend_part_message1[i - 7], s1)) % 4294967296;
             extend_part_message1[i] = to_binary_32bit(sum_ext1_2_s0_s1);
-
+            /*for (auto j = 0; j < 32; ++j)
+            {
+                std::cout << extend_part_message1[i][j];
+            }
+            std::cout << std::endl;*/
         }
         std::cout << "extend_part_message_after" << std::endl;
         for (auto i = 0; i < 64; ++i)
@@ -688,32 +620,9 @@ __host__ __int64* main_loop_sha256_with_ipad(__int64* message)
     memcpy(hash + 224, h7, 8 * 32);
     return hash;
 
-    //for (auto j = 0; j < 32; ++j)
-    //{
-    //    std::cout << extend_part_message1[0][j];
-    //   // str[j] = extend_part_message1[0][j];
-    //}
-    //std::cout << std::endl;
-    //for (auto j = 0; j < 32; ++j)
-    //{
-    //    std::cout << extend_part_message1[1][j];
-    //    // str[j] = extend_part_message1[0][j];
-    //}
-    //std::cout << std::endl;
-    //sum_ext1_s0 = sum_strs_32bit(extend_part_message1[0], extend_part_message1[1]);
-    //to_binary_32bit(sum_ext1_s0);
-    /*std::cout << extend_part_message1[0] << std::endl;
-    std::cout << extend_part_message1[1] << std::endl;*/
-    //sum_strs_32bit(extend_part_message1[0], extend_part_message1[1]);
-    //std::cout << std::endl;
-    //rigth_shift(str, 7);
-    //delete[] str;
     
-    delete[] part_message1;
-    delete[] part_message2;
-    //}
-    //memcpy(extend_part_message1, part_message1, 8 * 512);
     
+       
 
 }
 
@@ -735,8 +644,24 @@ int main()
     std::cout << "hash" << std::endl;
     for (auto i = 0; i < 256; ++i)
     {
-        std::cout << std::hex << hash[i];
+        std::cout << hash[i];
     }
+    /*
+    __int64* h0 = new __int64[] { 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1 };
+    __int64* h1 = new __int64[] { 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1 };
+    __int64* res = new __int64[32];
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << h0[i];
+    }
+    std::cout << std::endl;
+    res = rigth_shift(h0, 5);
+    
+    std::cout << "res" << std::endl;
+    for (auto i = 0; i < 32; ++i)
+    {
+        std::cout << res[i];
+    }*/
     //password_xor_with_IPAD("1234", 4);
     // Add vectors in parallel.
     /*cudaError_t cudaStatus = addWithCuda(bin_str_512, 512);
