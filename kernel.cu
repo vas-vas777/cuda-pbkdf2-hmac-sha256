@@ -22,15 +22,15 @@ __constant__ const uint32_t round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0f
 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 };
 
-__device__ uint32_t pow_uint32_t(uint32_t a, uint32_t x)
-{
-    uint32_t res = 1;
-    for (auto i = 0; i < x; ++i)
-    {
-        res = a * res;
-    }
-    return res;
-}
+//__device__ uint32_t pow_uint32_t(uint32_t a, uint32_t x)
+//{
+//    uint32_t res = 1;
+//    for (auto i = 0; i < x; ++i)
+//    {
+//        res = a * res;
+//    }
+//    return res;
+//}
 
 __device__ uint32_t* to_binary_32bit(uint32_t number)
 {
@@ -62,15 +62,20 @@ __device__ uint32_t str_to_32bitnumber(uint32_t* str)
     //int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (auto i = 0; i < 32; ++i)
     {
-        number1 += str[i] * pow_uint32_t(2, (31 - i));
+        uint32_t number2 = 1;
+        for (auto j = 0; j < (31 - i); ++j)
+        {
+            number2 *= 2;
+        }
+        number1 += str[i] * number2;
     }
-   // __syncthreads();
+
     return number1;
 }
 
 __device__ uint32_t* and_strs_32bit(uint32_t* str1, uint32_t* str2)
 {
-    uint32_t result_str[32]{ 0 };
+    uint32_t* result_str = new uint32_t[32]{ 0 };
    // int i = blockIdx.x * blockDim.x + threadIdx.x;
    // int i = threadIdx.x;
     for (auto i = 0; i < 32; ++i)
@@ -84,11 +89,11 @@ __device__ uint32_t* and_strs_32bit(uint32_t* str1, uint32_t* str2)
 
 __device__ uint32_t* inverse_str_32bit(uint32_t* str1)
 {
-    uint32_t result_str[32]{ 0 };
+    uint32_t* result_str = new uint32_t[32]{ 0 };
    
     for (auto i = 0; i < 32; ++i)
     {
-        result_str[i] = !(str1[i]);
+        result_str[i] = !str1[i];
         //printf("%u", result_str[i]);
     }
         //__syncthreads();
@@ -97,7 +102,8 @@ __device__ uint32_t* inverse_str_32bit(uint32_t* str1)
 
 __device__ uint32_t* inverse_str_256bit(uint32_t* str1)
 {
-    uint32_t result_str[256]{ 0 };
+    uint32_t* result_str = new uint32_t[256]{ 0 };
+
    
    // int i = threadIdx.x ;
     //if (i < 256)
@@ -113,28 +119,37 @@ __device__ uint32_t* inverse_str_256bit(uint32_t* str1)
     
 }
 
-__device__ uint32_t sum_strs_32bit(uint32_t* str1, uint32_t* str2)
+__device__ uint32_t sum_strs_32bit(uint32_t str1[], uint32_t str2[])
 {
     uint32_t number1 = 0;
     uint32_t number2 = 0;
     uint32_t res_number = 0;
-   // int i = threadIdx.x ;
-   // int i = threadIdx.x;
-    for (auto i = 0; i < 32; ++i)
+    // int i = threadIdx.x ;
+    for (int i = 0; i < 32; ++i)
+        // if(i<32)
+         //int i = blockIdx.x * blockDim.x + threadIdx.x;
     {
-        //printf("%u\n", str1[i]);
-        number1 += str1[i] * pow_uint32_t(2,(31-i));
+        uint32_t number3 = 1;
+        for (auto j = 0; j < (31 - i); ++j)
+        {
+            number3 *= 2;
+        }
+        number1 += str1[i] * number3;
     }
-    for (auto i = 0; i < 32; ++i)
+    for (int i = 0; i < 32; ++i)
     {
-        //printf("%d,%u,%f\n", str2[i], 31 - i, str2[i] * pow(2.0, (31 - i)));
-        number2 += str2[i] * pow_uint32_t(2, (31 - i));
+        uint32_t number3 = 1;
+        for (auto j = 0; j < (31 - i); ++j)
+        {
+            number3 *= 2;
+        }
+        number2 += str2[i] * number3;
     }
     res_number = (number1 + number2) % 4294967296;
-   // __syncthreads();
+    __syncthreads();
     return res_number;
-   // delete[]result_sum;
-    //delete[]result_sum;
+    // delete[]result_sum;
+     //delete[]result_sum;
 }
 
 __device__ uint32_t* xor_strs(uint32_t* str1, uint32_t* str2, unsigned int length)
@@ -155,7 +170,7 @@ __device__ uint32_t* xor_strs(uint32_t* str1, uint32_t* str2, unsigned int lengt
 __device__ uint32_t rigth_rotate(uint32_t* str, unsigned int num)
 {
     uint32_t number = 0;
-    uint32_t rotated_str[32]{ 0 };
+    uint32_t* rotated_str = new uint32_t[32]{ 0 };
     //int i = blockIdx.x * blockDim.x + threadIdx.x;
     //int i = threadIdx.x;
     //rotated_str[i] = str[i];
@@ -169,7 +184,7 @@ __device__ uint32_t rigth_rotate(uint32_t* str, unsigned int num)
 __device__ uint32_t rigth_shift(uint32_t* str, unsigned int num)
 {
     
-    uint32_t shifted_str[32]{ 0 };
+    uint32_t* shifted_str = new uint32_t[32]{ 0 };
     //int i = blockIdx.x * blockDim.x + threadIdx.x;
     //shifted_str[i] = str[i];
    memcpy(shifted_str, str, 4 * 32);
@@ -255,23 +270,23 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
     uint32_t h5[32] { 1, 0, 0, 1,  1, 0, 1, 1,  0, 0, 0, 0,  0, 1, 0, 1,  0, 1, 1, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1, 1, 0, 0 };
     uint32_t h6[32] { 0, 0, 0, 1,  1, 1, 1, 1,  1, 0, 0, 0,  0, 0, 1, 1,  1, 1, 0, 1,  1, 0, 0, 1,  1, 0, 1, 0,  1, 0, 1, 1 };
     uint32_t h7[32] { 0, 1, 0, 1,  1, 0, 1, 1,  1, 1, 1, 0,  0, 0, 0, 0,  1, 1, 0, 0,  1, 1, 0, 1,  0, 0, 0, 1,  1, 0, 0, 1 };
-    uint32_t part_message1[512]{ 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1,
+    uint32_t part_message1[512]{ 0 };/*{ 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1,
 0,1,1,1,0,0,1,0, 0,1,1,0,1,1,0,0, 0,1,1,0,0,1,0,0, 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,1,0,1,1,0,0,0 };
+0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,1,0,1,1,0,0,0 };*/
     uint32_t part_message2[512]{ 0 };
-   // memcpy(part_message1, message, 4 * 512);
-    //memcpy(part_message2, message + 512, 4 * 512);
+    memcpy(part_message1, message, 4 * 512);
+    memcpy(part_message2, message + 512, 4 * 512);
    
     int count = 1;//счётчик для 2ух итераций
    
 
    
-    while (count < 2)
+    while (count < 3)
     {
         
         
