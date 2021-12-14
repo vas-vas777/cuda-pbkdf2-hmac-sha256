@@ -6,11 +6,11 @@
 #include <string>
 #include <bitset>
 #include <iostream>
+#include <fstream>
 
 
-
-//#include <openssl/hmac.h>
-
+#define count_passwords 500
+#define length_passwords 64
 
 
 
@@ -25,21 +25,13 @@ __constant__ const uint32_t round_consts[64] = { 0x428a2f98, 0x71374491, 0xb5c0f
 
 
 
-//__device__ uint32_t and_result[32]{ 1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1 };
-//__device__ uint32_t inverse_result[32]{ 0 };
-//__device__ uint32_t result_xor2[32]{ 0 };
-//__device__ uint32_t binary_str[32]{ 0 };
-
-
-
-
 
 
 
 __device__ uint32_t* to_binary_32bit(uint32_t number, uint32_t* binary_str)
 {
     
-   // uint32_t binary_str[32]{ 0 };
+  
    
     int count = 31;
     while (number != 0)
@@ -53,15 +45,12 @@ __device__ uint32_t* to_binary_32bit(uint32_t number, uint32_t* binary_str)
     }
     
   return binary_str;
-   // delete[] binary_str;
+   
 }
 
 __device__ uint32_t str_to_32bitnumber(uint32_t* str)
 {
     uint32_t number1 = 0;
-    //
-   // int i = threadIdx.x ;
-    //int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (auto i = 0; i < 32; ++i)
     {
         uint32_t number2 = 1;
@@ -75,37 +64,32 @@ __device__ uint32_t str_to_32bitnumber(uint32_t* str)
     return number1;
 }
 
-__device__ uint32_t* and_strs_32bit(uint32_t* str1, uint32_t* str2, uint32_t* and_result)
-{
-   
-   // sha256_struct* ctr;
-    //uint32_t and_result[32]{ 1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1 };;
-   
-    for (auto i = 0; i < 32; ++i)
-    {
-       /* atomicAnd(&and_result[i], str1[i]);
-        atomicAnd(&and_result[i], str2[i]);*/
-       // __syncthreads();
-      and_result[i] = str1[i] & str2[i];
-    }
-    
-   return and_result;
-   
-}
-
-__device__ uint32_t* inverse_str_32bit(uint32_t* str1, uint32_t* inverse_result)
-{
-    
-  //  uint32_t inverse_result[32]{ 0 };
-    //sha256_struct* ctr;
-    for (auto i = 0; i < 32; ++i)
-    {
-        inverse_result[i] = !(str1[i]);
-    }
-    
-   return inverse_result;
-   // delete[] inverse_result;
-}
+//__device__ uint32_t* and_strs_32bit(uint32_t* str1, uint32_t* str2, uint32_t* and_result)
+//{
+//   
+//   
+//   
+//    for (auto i = 0; i < 32; ++i)
+//    {
+//       /* atomicAnd(&and_result[i], str1[i]);
+//        atomicAnd(&and_result[i], str2[i]);*/
+//       // __syncthreads();
+//      and_result[i] = str1[i] & str2[i];
+//    }
+//    
+//   return and_result;
+//   
+//}
+//
+//__device__ uint32_t* inverse_str_32bit(uint32_t* str1, uint32_t* inverse_result)
+//{
+//    for (auto i = 0; i < 32; ++i)
+//    {
+//        inverse_result[i] = !(str1[i]);
+//    }
+//   return inverse_result;
+//   
+//}
 
 
 
@@ -120,165 +104,116 @@ __device__ uint32_t sum_strs_32bit(uint32_t *str1, uint32_t *str2)
         atomicAdd(&number1[0], str1[i] * __powf(2, (31 - i)));
         atomicAdd(&number2[0], str2[i] * __powf(2, (31 - i)));
        // __syncthreads();
-        /*result_xor[i] = str1[i] ^ str2[i];
-        result_xor[i] = result_xor[i] ^ str3[i];*/
+        
     }
     res_number = ((number1[0]) + (number2[0])) % 4294967296;
-    //uint32_t number1 = 0;
-    //uint32_t number2 = 0;
-    //uint32_t res_number = 0;
-    //// int i = threadIdx.x ;
-    //for (int i = 0; i < 32; ++i)
-    //    // if(i<32)
-    //     //int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //{
-    //    uint32_t number3 = 1;
-    //    for (auto j = 0; j < (31 - i); ++j)
-    //    {
-    //        number3 *= 2;
-    //    }
-    //    number1 += str1[i] * number3;
-    //}
-    //for (int i = 0; i < 32; ++i)
-    //{
-    //    uint32_t number3 = 1;
-    //    for (auto j = 0; j < (31 - i); ++j)
-    //    {
-    //        number3 *= 2;
-    //    }
-    //    number2 += str2[i] * number3;
-    //}
-    //res_number = (number1 + number2) % 4294967296;
-    //__syncthreads();
     return res_number;
-    // delete[]result_sum;
-     //delete[]result_sum;
+   
 }
 
 
-__device__ uint32_t* xor_strs(uint32_t* str1, uint32_t* str2, unsigned int length, uint32_t* result_xor, uint32_t* str3)
+__device__ void xor_strs(uint32_t* str1, uint32_t* str2, unsigned int length, uint32_t* result_xor, uint32_t* str3)
 {
    
-    //uint32_t result_xor[32]{ 0 };
-
-
     for (auto i = 0; i <length; ++i)   
     {
-        atomicXor(&(result_xor[i]),str1[i]);
+        /*atomicXor(&(result_xor[i]), str1[i]);
         atomicXor(&(result_xor[i]), str2[i]);
         atomicXor(&(result_xor[i]), str3[i]);
-        __syncthreads();
-       /* result_xor[i] = str1[i] ^ str2[i];
-        result_xor[i] = result_xor[i] ^ str3[i];*/
+        __syncthreads();*/
+        result_xor[i] = str1[i] ^ str2[i];
+        result_xor[i] = result_xor[i] ^ str3[i];
     }
     
    
-   return result_xor;
+  // return result_xor;
    // delete[] result_xor;
 }
 
-__device__ uint32_t* rigth_rotate(uint32_t* str, unsigned int num,uint32_t* result_right_rotate)
-{
-    uint32_t number = 0;
-   // uint32_t rotated_str[32]{ 0 };
-    
-   // memcpy(rotated_str, str, 4 * 32);
-    number = str_to_32bitnumber(str);
-   
-    
-    /*while (number != 0)
-    {
-
-        result_right_rotate[count] = number % 2;
-
-        number /= 2;
-        count--;
-
-    }*/
-   // printf("%u\n", number);
-    number = ((number >> num) | (number << (32 - num)));
-   // printf("%u\n", number);
-    to_binary_32bit(number, result_right_rotate);
-    return result_right_rotate;
-    //return to_binary_32bit((number >> num | number << (32 - num)));
-
-}
-
-__device__ uint32_t* rigth_shift(uint32_t* str, unsigned int num, uint32_t* result_right_shift)
-{
-
-    //uint32_t shifted_str[32]{ 0 };
-    
-  //  memcpy(shifted_str, str, 4 * 32);
-   
-    uint32_t number = str_to_32bitnumber(str);
-    /*while (number != 0)
-    {
-
-        result_right_shift[count] = number % 2;
-
-        number /= 2;
-        count--;
-
-    }*/
-    to_binary_32bit(number >> num, result_right_shift);
-    return result_right_shift;
-
-}
+//__device__ uint32_t* rigth_rotate(uint32_t* str, unsigned int num,uint32_t* result_right_rotate)
+//{
+//    uint32_t number = 0;
+//    number = str_to_32bitnumber(str);
+//    number = ((number >> num) | (number << (32 - num)));
+//   
+//    to_binary_32bit(number, result_right_rotate);
+//    return result_right_rotate;
+//   
+//
+//}
+//
+//__device__ uint32_t* rigth_shift(uint32_t* str, unsigned int num, uint32_t* result_right_shift)
+//{
+//
+//   
+//   
+//    uint32_t number = str_to_32bitnumber(str);
+//   
+//    to_binary_32bit(number >> num, result_right_shift);
+//    return result_right_shift;
+//
+//}
 
 
 
-__device__ void password_xor_with_IPAD(char* password,unsigned int length, uint32_t* output_str)
+__device__ void password_xor_with_IPAD(uint32_t* password,size_t length, uint32_t* output_str)
 {
     uint32_t binary_str[512]{ 0 };
+    memcpy(binary_str, password, sizeof(uint32_t) * 64);
     
     uint32_t IPAD[] = { 0,0,1,1,0,1,1,0 };
+
+   // xor_strs(binary_str)
     
-    int i = threadIdx.x+blockIdx.x*blockDim.x;
-    
-    output_str[i] = binary_str[i] ^ IPAD[i % 8];
-     __syncthreads();
-  
-  
+    for (int i = 0; i < 512; ++i)
+    {
+        output_str[i] = binary_str[i] ^ IPAD[i % 8];
+        __syncthreads();
+    }
+  //  __syncthreads();
     
 }
 
-__device__ void password_xor_with_OPAD(char* password, unsigned int length, uint32_t *output_str)
+__device__ void password_xor_with_OPAD(uint32_t* password, size_t length, uint32_t *output_str)
 {
     uint32_t binary_str[512]{ 0 };
-    uint32_t OPAD [] = { 0,1,0,1,1,1,0,0 };
+    uint32_t OPAD[] = { 0,1,0,1,1,1,0,0 };
+    memcpy(binary_str, password, sizeof(uint32_t) * 64);
    
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    output_str[i] = binary_str[i] ^ OPAD[i % 8];
-    __syncthreads();
-   
+   // __syncthreads();
+    for (int k = 0; k < 512; ++k)
+    {
+        output_str[k] = binary_str[k] ^ OPAD[k % 8];
+        /*atomicXor(&(output_str[k]), binary_str[k]);
+        atomicXor(&(output_str[k]), OPAD[k % 8]);*/
+        __syncthreads();
+    }
+   // __syncthreads();
 }
 
  __device__ void preparation_sha256_with_IPAD(uint32_t* password_xor_with_ipad, uint32_t*prev_hash, uint32_t *output_str)
 {
      uint32_t message[1024]{ 0 };
      //uint32_t prev_hash_hmac[256]{ 0 };
-     for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < 512; i += gridDim.x * blockDim.x)
+     for (int k = 0; k < 512; ++k)
      {
          //  __syncthreads();
-         message[i] = password_xor_with_ipad[i];
+         message[k] = password_xor_with_ipad[k];
          __syncthreads();
      }
 
-     for (int j = threadIdx.x + blockIdx.x * blockDim.x; j < 256; j += gridDim.x * blockDim.x)
+     for (int k = 0; k < 256; ++k)
      {
-
-         message[j + 512] = prev_hash[j];
+         message[k + 512] = prev_hash[k];
          __syncthreads();
      }
      // __syncthreads();
      message[768] = 1;
      message[1014] = 1;
      message[1015] = 1;
-     for (int j = threadIdx.x + blockIdx.x * blockDim.x; j < 1024; j += gridDim.x * blockDim.x)
+     for (int k = 0; k < 1024; ++k)
      {
-
-         output_str[j] = message[j];
+         output_str[k] = message[k];
          __syncthreads();
      }
 }
@@ -286,24 +221,24 @@ __device__ void password_xor_with_OPAD(char* password, unsigned int length, uint
 __device__ void preparation_sha256_with_OPAD(uint32_t* password_xor_with_opad, uint32_t* prev_hash, uint32_t* output_str)
 {
     uint32_t message[1024]{ 0 };
-    for (int s = threadIdx.x + blockIdx.x * blockDim.x; s < 512; s += gridDim.x * blockDim.x)
+    for (int k = 0; k < 512; ++k)
     {
         // __syncthreads();
-        message[s] = password_xor_with_opad[s];
+        message[k] = password_xor_with_opad[k];
         __syncthreads();
     }
 
-    for (int d = threadIdx.x + blockIdx.x * blockDim.x; d < 256; d += gridDim.x * blockDim.x)
+    for (int k = 0; k < 256; ++k)
     {
         //__syncthreads();
-        message[d + 512] = prev_hash[d];
+        message[k + 512] = prev_hash[k];
         __syncthreads();
     }
 
     message[768] = 1;
     message[1014] = 1;
     message[1015] = 1;
-    for (int j = threadIdx.x + blockIdx.x * blockDim.x; j < 1024; j += gridDim.x * blockDim.x)
+    for (int j = 0; j < 1024; ++j)
     {
 
         output_str[j] = message[j];
@@ -324,10 +259,7 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
     uint32_t h5[32]{ 1, 0, 0, 1,  1, 0, 1, 1,  0, 0, 0, 0,  0, 1, 0, 1,  0, 1, 1, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1, 1, 0, 0 };
     uint32_t h6[32]{ 0, 0, 0, 1,  1, 1, 1, 1,  1, 0, 0, 0,  0, 0, 1, 1,  1, 1, 0, 1,  1, 0, 0, 1,  1, 0, 1, 0,  1, 0, 1, 1 };
     uint32_t h7[32]{ 0, 1, 0, 1,  1, 0, 1, 1,  1, 1, 1, 0,  0, 0, 0, 0,  1, 1, 0, 0,  1, 1, 0, 1,  0, 0, 0, 1,  1, 0, 0, 1 };
-
-    /*auto a = sum_strs_32bit(h0, h1);
-    printf("a=%u\n", a);*/
-
+       
     uint32_t part_message1[512]{ 0 };/*{ 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1,
 0,1,1,1,0,0,1,0, 0,1,1,0,1,1,0,0, 0,1,1,0,0,1,0,0, 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
@@ -337,8 +269,8 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,1,0,1,1,0,0,0 };*/
     uint32_t part_message2[512]{ 0 };
-   // memcpy(part_message1, message, 4 * 512);
-   // memcpy(part_message2, message + 512, 4 * 512);
+    memcpy(part_message1, message, 4 * 512);
+    memcpy(part_message2, message + 512, 4 * 512);
 
     int count = 1;//счётчик для 2ух итераций
 
@@ -348,11 +280,11 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
     {
 
 
-        uint32_t S1[32]{ 0 };
-        uint32_t ch[32]{ 0 };
+      //  uint32_t S1[32]{ 0 };
+       // uint32_t ch[32]{ 0 };
         uint32_t temp1[32]{ 0 };
-        uint32_t S0[32]{ 0 };
-        uint32_t maj[32]{ 0 };
+      //  uint32_t S0[32]{ 0 };
+     //   uint32_t maj[32]{ 0 };
         uint32_t temp2[32]{ 0 };
 
         uint32_t a[32]{ 0 };
@@ -524,6 +456,7 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
             and_strs_32bit(b, c, res_and5);
             xor_strs(res_and3, res_and4, 32, res_xor4, res_and5);
             memcpy(maj, res_xor4, 4 * 32);*/
+
             uint32_t round_cnst[32]{ 0 };
             to_binary_32bit(round_consts[i], round_cnst);
            
@@ -555,7 +488,7 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
             temp1[0] = temp1[0] % 2;
 
 
-            uint32_t to_binary_32bit1[32]{ 0 };
+        //    uint32_t to_binary_32bit1[32]{ 0 };
             uint32_t to_binary_32bit2[32]{ 0 };
             uint32_t to_binary_32bit3[32]{ 0 };
            
@@ -565,99 +498,62 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
             
 
             memcpy(h, g, 4 * 32);
-            /*__syncthreads();
-            printf("h\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", h[j]);
-            }
-            printf("\n");*/
+           
 
             memcpy(g, f, 4 * 32);
-            /*__syncthreads();
-
-            printf("g\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", g[j]);
-            }
-            printf("\n");*/
+            
 
 
             memcpy(f, e, 4 * 32);
-           /* __syncthreads();
-
-            printf("f\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", f[j]);
-            }
-            printf("\n");*/
+          
 
             to_binary_32bit(sum_strs_32bit(d, temp1), to_binary_32bit2);
             memcpy(e, to_binary_32bit2, 4 * 32);
-            /*printf("e\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", e[j]);
-            }
-            printf("\n");*/
+           
 
             memcpy(d, c, 4 * 32);
-            /*__syncthreads();
-            printf("d\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", d[j]);
-            }
-            printf("\n");*/
+           
             memcpy(c, b, 4 * 32);
-            /*__syncthreads();
-            printf("c\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", c[j]);
-            }
-            printf("\n");*/
+            
             memcpy(b, a, 4 * 32);
-           /* __syncthreads();
-            printf("b\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", b[j]);
-            }
-            printf("\n");*/
+           
 
             to_binary_32bit(sum_strs_32bit(temp1, temp2),to_binary_32bit3);
-            memcpy(a, to_binary_32bit3, 4 * 32);
-            /*__syncthreads();
-            printf("a\n");
-            for (auto j = 0; j < 32; ++j)
-            {
-                printf("%u", a[j]);
-            }
-            printf("\n");*/
-            
-            
-           
+            memcpy(a, to_binary_32bit3, 4 * 32);        
 
         }
          
         count++;
 
-        to_binary_32bit(sum_strs_32bit(h0, a), h0);
-        to_binary_32bit(sum_strs_32bit(h1, b), h1);
-        to_binary_32bit(sum_strs_32bit(h2, c), h2);
-        to_binary_32bit(sum_strs_32bit(h3, d), h3);
-        to_binary_32bit(sum_strs_32bit(h4, e), h4);
-        to_binary_32bit(sum_strs_32bit(h5, f), h5);
-        to_binary_32bit(sum_strs_32bit(h6, g), h6);
-        to_binary_32bit(sum_strs_32bit(h7, h), h7);
+        uint32_t to_binary_32bith0[32]{ 0 };
+        uint32_t to_binary_32bith1[32]{ 0 };
+        uint32_t to_binary_32bith2[32]{ 0 };
+        uint32_t to_binary_32bith3[32]{ 0 };
+        uint32_t to_binary_32bith4[32]{ 0 };
+        uint32_t to_binary_32bith5[32]{ 0 };
+        uint32_t to_binary_32bith6[32]{ 0 };
+        uint32_t to_binary_32bith7[32]{ 0 };
 
+        to_binary_32bit(sum_strs_32bit(h0, a), to_binary_32bith0);
+        memcpy(h0, to_binary_32bith0, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h1, b), to_binary_32bith1);
+        memcpy(h1, to_binary_32bith1, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h2, c), to_binary_32bith2);
+        memcpy(h2, to_binary_32bith2, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h3, d), to_binary_32bith3);
+        memcpy(h3, to_binary_32bith3, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h4, e), to_binary_32bith4);
+        memcpy(h4, to_binary_32bith4, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h5, f), to_binary_32bith5);
+        memcpy(h5, to_binary_32bith5, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h6, g), to_binary_32bith6);
+        memcpy(h6, to_binary_32bith6, 4 * 32);
+        to_binary_32bit(sum_strs_32bit(h7, h), to_binary_32bith7);
+        memcpy(h7, to_binary_32bith7, 4 * 32);
        
     }
 
-    uint32_t* hash = new uint32_t[256]{ 0 };
+    uint32_t *hash=new uint32_t[256]{ 0 };
     memcpy(hash, h0, 4 * 32);
     memcpy(hash + 32, h1, 4 * 32);
     memcpy(hash + 64, h2, 4 * 32);
@@ -667,102 +563,86 @@ __device__ void main_loop_sha256(uint32_t* message, uint32_t* output_hash)
     memcpy(hash + 192, h6, 4 * 32);
     memcpy(hash + 224, h7, 4 * 32);
     memcpy(output_hash, hash, 4 * 256);
+    /*printf("\n");
+    for (auto i = 0; i < 256; ++i)
+    {
+        printf("%u", output_hash[i]);
+    }
+    printf("\n");*/
 
 }
 
 
 
 
-__device__ void hmac_sha256(int c, uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad, uint32_t* prev_hash1)
+//__device__ void hmac_sha256(int c, uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad, uint32_t* prev_hash1)
+//{
+//    
+//    //for (auto i = 0; i < 1; ++i)
+//    //{
+//    //   //printf("%d\n", i);
+//    //    preparation_sha256_with_IPAD(pass_xor_ipad, prev_hash1, message);
+//    //   // 
+//    //    preparation_sha256_with_OPAD(pass_xor_opad, prev_hash1, message);
+//    //   
+//    //   // memcpy(prev_hash_hmac, xor_strs_256bit(prev_hash_hmac, prev_hash1), 4 * 256);
+//    //}
+//   
+//    //return message;
+//}
+
+//__global__ void password_xor_with_ipad_opad( uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad)
+//{
+//    /*password_xor_with_IPAD(password, length, pass_xor_ipad);
+//    password_xor_with_OPAD(password, length, pass_xor_opad);*/
+//}
+
+__global__ void pbkdf2_hmac_sha256(unsigned int c, uint32_t* password, size_t length, uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad,uint32_t* salt, uint32_t* pbkdf2_hash)
 {
-    
-    //for (auto i = 0; i < 1; ++i)
-    //{
-    //   //printf("%d\n", i);
-    //    preparation_sha256_with_IPAD(pass_xor_ipad, prev_hash1, message);
-    //   // 
-    //    preparation_sha256_with_OPAD(pass_xor_opad, prev_hash1, message);
-    //   
-    //   // memcpy(prev_hash_hmac, xor_strs_256bit(prev_hash_hmac, prev_hash1), 4 * 256);
-    //}
    
-    //return message;
-}
-
-__global__ void password_xor_with_ipad_opad(char* password, unsigned int length, uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad)
-{
-    password_xor_with_IPAD(password, length, pass_xor_ipad);
-    password_xor_with_OPAD(password, length, pass_xor_opad);
-}
-
-__global__ void pbkdf2_hmac_sha256(unsigned int c, uint32_t* pass_xor_ipad, uint32_t* pass_xor_opad,uint32_t* salt, uint32_t* pbkdf2_hash)
-{
-   // int i = threadIdx.x;
-    //preparation_sha256_with_IPAD(pass_xor_ipad, salt, pbkdf2_hash);
     uint32_t message[1024]{ 0 };
     uint32_t prev_hash_hmac[256]{ 0 };
-    memcpy(prev_hash_hmac, salt, sizeof(uint32_t) * 256);
-   // int i = 0;
-    //memcpy(pbkdf2_hash, hmac_sha256(c, pass_xor_ipad, pass_xor_opad, salt), 4 * 256);
-    for (auto j = 0; j < c; ++j)
+    uint32_t zero_str[256]{ 0 };
+    uint32_t part_pbkdf2_hash[256]{ 0 };
+
+    for (int k = threadIdx.x + blockIdx.x * blockDim.x; k < count_passwords; k += gridDim.x * blockDim.x)
     {
-        printf("j=%d\n", j);
+       for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < 2; i += gridDim.x * blockDim.x)
+       {
+            //salt[255] = (uint32_t)(i + 1);
+            password_xor_with_IPAD(password, length, pass_xor_ipad);
+            __syncthreads();
+            password_xor_with_OPAD(password, length, pass_xor_opad);
+            __syncthreads();
+            memcpy(prev_hash_hmac, salt, sizeof(uint32_t) * 256);
+            __syncthreads();
 
-        preparation_sha256_with_IPAD(pass_xor_ipad, prev_hash_hmac, message);
-        main_loop_sha256(message, prev_hash_hmac);
-        preparation_sha256_with_OPAD(pass_xor_opad, prev_hash_hmac, message);
-        main_loop_sha256(message, pbkdf2_hash);
+            for (auto j = 0; j < c; ++j)
+            {
+               printf("j=%d\n", j);
 
-        /* for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < 256; i += gridDim.x * blockDim.x)
-         {
-             pbkdf2_hash[i] = prev_hash_hmac[i] ^ pbkdf2_hash[i];
-             __syncthreads();
-         }*/
+                preparation_sha256_with_IPAD(pass_xor_ipad, prev_hash_hmac, message);
+                main_loop_sha256(message, prev_hash_hmac);
+                preparation_sha256_with_OPAD(pass_xor_opad, prev_hash_hmac, message);
+                main_loop_sha256(message, prev_hash_hmac);
+                xor_strs(prev_hash_hmac, part_pbkdf2_hash, 256, part_pbkdf2_hash, zero_str);
+                /* for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < 256; i += gridDim.x * blockDim.x)
+                 {
+                     pbkdf2_hash[i] = prev_hash_hmac[i] ^ pbkdf2_hash[i];
+                     __syncthreads();
+                 }*/
+            }
+            __syncthreads();
+            memcpy(pbkdf2_hash, part_pbkdf2_hash, sizeof(uint32_t) * 256);
+            __syncthreads();
+         //   __syncthreads();
+       }
+        __syncthreads();
     }
-
 }
 
 
-//__device__ void pbkdf2_hmac_sha256()
-//{
-//    // 
-//    // uint32_t *hash = new uint32_t[256]{ 0 };
-//    // uint32_t *salt = new uint32_t[256]{ 0 };
-//    // uint32_t *prev_hash = new uint32_t[256]{ 0 };
-//    // //uint32_t* temp = new uint32_t[256]{ 0 };
-//
-//    // uint32_t password_xor_with_ipad[512]{ 0 };
-//    // uint32_t password_xor_with_opad[512]{ 0 };
-//
-//    // memcpy(password_xor_with_ipad, password_xor_with_IPAD(password, length), 4 * 512);
-//    // memcpy(password_xor_with_opad, password_xor_with_OPAD(password, length), 4 * 512);
-//    //// int index = threadIdx.x + blockIdx.x*blockDim.x;
-//    // uint32_t dklen = 256;
-//    // uint32_t len = dklen / 256;
-//    // uint32_t r = dklen - (len - 1) * 256;
-//    // int index = threadIdx.x;
-//    //
-//    // //for (auto index = 0; index < len; ++index)
-//    // while (index < len)
-//    // {
-//    //     salt[255] = index;
-//    //     memcpy(prev_hash, salt, 4 * 256);
-//    //     uint32_t temp_hash[256]{ 0 };
-//    //     for (auto j = 0; j < c; ++j)
-//    //     {
-//    //         memcpy(prev_hash, hmac_sha256(prev_hash, password_xor_with_ipad, password_xor_with_opad), 4 * 256);
-//    //         memcpy(temp_hash, xor_strs(temp_hash, prev_hash,256), 4 * 256);
-//    //     }
-//    //    
-//    //     memcpy(hash + index * 256, temp_hash, 4 * 256);
-//    // }
-//    // delete[] salt;
-//    // delete[] prev_hash;
-//    // delete[] password_xor_with_ipad;
-//    // delete[] password_xor_with_opad;
-//    // return hash;
-//
-//}
+
 
 uint32_t* random_salt(size_t Nbits)
 {
@@ -778,27 +658,77 @@ uint32_t* random_salt(size_t Nbits)
     return str;
 };
 
+void str_to_binary(std::string pass, int *output_binary)
+{
+    int ascii_number_of_letter = 0;
+    int count = pass.size() * 8;
+    for (size_t i = 0; i < pass.size(); ++i)
+    {
+        ascii_number_of_letter = (int)(pass[i]);
+        while (ascii_number_of_letter != 0)
+        {
+            output_binary[count] = ascii_number_of_letter % 2;
+            ascii_number_of_letter /= 2;
+            count--;
+        }
+    }
 
+}
 
 int main()
 {
 
-    //std::string password = "1234";
-    unsigned int len_hash_pbkdf2 = 1;
-    //    uint32_t* pbkdf2_hash = new uint32_t[len_hash_pbkdf2 * 256];
+    
+    unsigned int len_hash_pbkdf2 = 2;
     uint32_t* salt = new uint32_t[256]{ 0 };
-    //memcpy(salt, random_salt(254), 4 * 254);
+   
+    std::ifstream file("8digits.txt");
+    std::string pass;
+    uint32_t binary_passwords[1000][64]{ 0 };
+    int count = 0;
 
+    std::string bin_pass;
+    if (file.is_open())
+    {
+        while (!file.eof() && count<1000)
+        {
+            file >> pass;
+            for (std::size_t i = 0; i < pass.size(); ++i)
+            {
+                bin_pass.append(std::bitset<8>(pass.c_str()[i]).to_string());
+            }
+            for (std::size_t j = 0; j < bin_pass.size(); ++j)
+            {
+                binary_passwords[count][j] = uint32_t(bin_pass[j])-48;
+            }
+            bin_pass.erase();
+            count++;
+        }
+
+    }
+
+   /* for (auto i = 0; i < 1000; ++i)
+    {
+        std::cout << "count i-"<<i<<" ";
+        for (auto j = 0; j < 64; ++j)
+        {
+            std::cout << binary_passwords[i][j];
+        }
+        std::cout << std::endl;
+    }*/
+
+  
 
 
     uint32_t* password_xor_with_ipad = new uint32_t[512]{ 0 };
     uint32_t* password_xor_with_opad = new uint32_t[512]{ 0 };
-    uint32_t* pbkdf2_hash = new uint32_t[len_hash_pbkdf2 * 1024]{ 0 };
+    uint32_t* pbkdf2_hash = new uint32_t[len_hash_pbkdf2 * 256]{ 0 };
     uint32_t* dev_password_xor_with_ipad;
     uint32_t* dev_password_xor_with_opad;
     uint32_t* dev_pbkdf2_hash;
     uint32_t* dev_salt;
-
+    uint32_t* dev_binary_passwords;
+    
 
     cudaError_t cudaStatus;
     cudaStatus = cudaSetDevice(0);
@@ -807,6 +737,16 @@ int main()
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&dev_binary_passwords, 64 * sizeof(uint32_t));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        //goto Error;
+    }
+    cudaStatus = cudaMemcpy(dev_binary_passwords, binary_passwords[100], 64 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!");
+        goto Error;
+    }
 
     cudaStatus = cudaMalloc((void**)&dev_password_xor_with_ipad, 512 * sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
@@ -831,66 +771,66 @@ int main()
 
 
 
-    password_xor_with_ipad_opad << <16, 32>> > ("1234", 4, dev_password_xor_with_ipad, dev_password_xor_with_opad);
+    
 
 
 
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
+    //cudaStatus = cudaGetLastError();
+    //if (cudaStatus != cudaSuccess) {
+    //    fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+    //    goto Error;
+    //}
 
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
+    //// cudaDeviceSynchronize waits for the kernel to finish, and returns
+    //// any errors encountered during the launch.
+    //cudaStatus = cudaDeviceSynchronize();
+    //if (cudaStatus != cudaSuccess) {
+    //    fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
+    //    goto Error;
+    //}
 
-    cudaStatus = cudaMemcpy(password_xor_with_ipad, dev_password_xor_with_ipad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+    //cudaStatus = cudaMemcpy(password_xor_with_ipad, dev_password_xor_with_ipad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    //if (cudaStatus != cudaSuccess) {
+    //    fprintf(stderr, "cudaMemcpy failed!");
+    //    goto Error;
+    //}
 
-    cudaStatus = cudaMemcpy(password_xor_with_opad, dev_password_xor_with_opad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-    for (auto i = 0; i < 512; ++i)
-    {
-        std::cout << password_xor_with_ipad[i];
-    }
-    std::cout << std::endl;
+    //cudaStatus = cudaMemcpy(password_xor_with_opad, dev_password_xor_with_opad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    //if (cudaStatus != cudaSuccess) {
+    //    fprintf(stderr, "cudaMemcpy failed!");
+    //    goto Error;
+    //}
+    //for (auto i = 0; i < 512; ++i)
+    //{
+    //    std::cout << password_xor_with_ipad[i];
+    //}
+    //std::cout << std::endl;
 
-    for (auto i = 0; i < 512; ++i)
-    {
-        std::cout << password_xor_with_opad[i];
-    }
-    std::cout << std::endl;
+    //for (auto i = 0; i < 512; ++i)
+    //{
+    //    std::cout << password_xor_with_opad[i];
+    //}
+    //std::cout << std::endl;
 
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
-    }
+    //cudaStatus = cudaDeviceReset();
+    //if (cudaStatus != cudaSuccess) {
+    //    fprintf(stderr, "cudaDeviceReset failed!");
+    //    return 1;
+    //}
     //---------------------------------------------------------------------------------------------------------
-    cudaStatus = cudaSetDevice(0);
+   /* cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
         goto Error;
-    }
+    }*/
 
-    cudaStatus = cudaMalloc((void**)&dev_pbkdf2_hash, len_hash_pbkdf2 * 1024 * sizeof(uint32_t));
+    cudaStatus = cudaMalloc((void**)&dev_pbkdf2_hash, len_hash_pbkdf2 * 256 * sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMemcpy(dev_pbkdf2_hash, pbkdf2_hash, len_hash_pbkdf2 * 1024 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(dev_pbkdf2_hash, pbkdf2_hash, len_hash_pbkdf2 * 256 * sizeof(uint32_t), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
@@ -908,55 +848,103 @@ int main()
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_password_xor_with_ipad, 512 * sizeof(uint32_t));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-    cudaStatus = cudaMemcpy(dev_password_xor_with_ipad, password_xor_with_ipad, 512 * sizeof(uint32_t), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-    cudaStatus = cudaMalloc((void**)&dev_password_xor_with_opad, 512 * sizeof(uint32_t));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-    cudaStatus = cudaMemcpy(dev_password_xor_with_opad, password_xor_with_opad, 512 * sizeof(uint32_t), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+    
+    
+        {   
 
-    pbkdf2_hmac_sha256 << <1, 1>> > (2000,  dev_password_xor_with_ipad, dev_password_xor_with_opad, dev_salt, dev_pbkdf2_hash);
+        /* cudaStatus = cudaMalloc((void**)&dev_password_xor_with_ipad, 512 * sizeof(uint32_t));
+         if (cudaStatus != cudaSuccess) {
+             fprintf(stderr, "cudaMalloc failed!");
+             goto Error;
+         }
+         cudaStatus = cudaMemcpy(dev_password_xor_with_ipad, password_xor_with_ipad, 512 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+         if (cudaStatus != cudaSuccess) {
+             fprintf(stderr, "cudaMemcpy failed!");
+             goto Error;
+         }
+         cudaStatus = cudaMalloc((void**)&dev_password_xor_with_opad, 512 * sizeof(uint32_t));
+         if (cudaStatus != cudaSuccess) {
+             fprintf(stderr, "cudaMalloc failed!");
+             goto Error;
+         }
+         cudaStatus = cudaMemcpy(dev_password_xor_with_opad, password_xor_with_opad, 512 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+         if (cudaStatus != cudaSuccess) {
+             fprintf(stderr, "cudaMemcpy failed!");
+             goto Error;
+         }*/
 
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
 
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
 
-    cudaStatus = cudaMemcpy(pbkdf2_hash, dev_pbkdf2_hash, len_hash_pbkdf2 * 1024 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+       // password_xor_with_ipad_opad << <16, 32 >> > (dev_password, length_passwords, dev_password_xor_with_ipad, dev_password_xor_with_opad);
 
-    //main_loop_sha256(message_for_sha256, hash);
-    for (auto i = 0; i < 1024; ++i)
-    {
-        std::cout << pbkdf2_hash[i];
+        //cudaStatus = cudaGetLastError();
+        //if (cudaStatus != cudaSuccess) {
+        //    fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+        //    goto Error;
+        //}
+
+        //// cudaDeviceSynchronize waits for the kernel to finish, and returns
+        //// any errors encountered during the launch.
+        //cudaStatus = cudaDeviceSynchronize();
+        //if (cudaStatus != cudaSuccess) {
+        //    fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
+        //    goto Error;
+        //}
+
+     /*   cudaStatus = cudaMemcpy(password_xor_with_ipad, dev_password_xor_with_ipad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemcpy failed!");
+            goto Error;
+        }
+
+        cudaStatus = cudaMemcpy(password_xor_with_opad, dev_password_xor_with_opad, 512 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemcpy failed!");
+            goto Error;
+        }*/
+       /* for (auto i = 0; i < 512; ++i)
+        {
+            std::cout << password_xor_with_ipad[i];
+        }
+        std::cout << std::endl;
+
+        for (auto i = 0; i < 512; ++i)
+        {
+            std::cout << password_xor_with_opad[i];
+        }
+        std::cout << std::endl;*/
+
+        pbkdf2_hmac_sha256 << <500, 2 >> > (2000, dev_binary_passwords, 8, dev_password_xor_with_ipad,
+            dev_password_xor_with_opad, dev_salt, dev_pbkdf2_hash);
+
+        cudaStatus = cudaGetLastError();
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+            goto Error;
+        }
+
+        // cudaDeviceSynchronize waits for the kernel to finish, and returns
+        // any errors encountered during the launch.
+        cudaStatus = cudaDeviceSynchronize();
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
+            goto Error;
+        }
+
+        cudaStatus = cudaMemcpy(pbkdf2_hash, dev_pbkdf2_hash, len_hash_pbkdf2 * 256 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemcpy failed!");
+            goto Error;
+        }
+
+        //main_loop_sha256(message_for_sha256, hash);
+        for (auto i = 0; i < 512; ++i)
+        {
+            std::cout << pbkdf2_hash[i];
+        }
+        std::cout << std::endl;
+
     }
-    std::cout << std::endl;
 
     cudaStatus = cudaDeviceReset();
     if (cudaStatus != cudaSuccess) {
