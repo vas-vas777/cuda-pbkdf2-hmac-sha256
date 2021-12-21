@@ -7,14 +7,13 @@
 #include <bitset>
 #include <iostream>
 #include <fstream>
-#include <cooperative_groups.h>
-
-//cooperative_groups::grid_group g = cooperative_groups::this_grid();
+#include <chrono>
 
 
-constexpr auto count_passwords = 400;
-constexpr auto count_iterations = 100000;
+constexpr auto count_passwords = 100;
+constexpr auto count_iterations = 10;
 constexpr auto length_password = 64;
+constexpr auto lenght_hash = 256;
 //constexpr auto lenght_hash = 1;
 
 
@@ -102,7 +101,7 @@ __device__ void xor_strs(uint32_t* str1, uint32_t* str2, unsigned int length, ui
 __device__ void password_xor_with_IPAD(uint32_t* password,size_t length, uint32_t* output_str)
 {
     uint32_t binary_str[512]{ 0 };
-    memcpy(binary_str, password, sizeof(uint32_t) * 64);
+    memcpy(binary_str, password, sizeof(uint32_t) * length_password);
     
     uint32_t IPAD[] = { 0,0,1,1,0,1,1,0 };
 
@@ -121,7 +120,7 @@ __device__ void password_xor_with_OPAD(uint32_t* password, size_t length, uint32
 {
     uint32_t binary_str[512]{ 0 };
     uint32_t OPAD[] = { 0,1,0,1,1,1,0,0 };
-    memcpy(binary_str, password, sizeof(uint32_t) * 64);
+    memcpy(binary_str, password, sizeof(uint32_t) * length_password);
    
    // __syncthreads();
     for (int k = 0; k < 512; ++k)
@@ -410,11 +409,11 @@ __global__ void pbkdf2_hmac_sha256(unsigned int c,
      uint32_t message[1024]{ 0 };
      uint32_t prev_hash_hmac[256]{ 0 };
      uint32_t zero_str[256]{ 0 };
-     uint32_t part_pbkdf2_hash[256]{ 0 };
+     uint32_t part_pbkdf2_hash[lenght_hash]{ 0 };
      uint32_t password_xor_ipad[512]{ 0 };
      uint32_t password_xor_opad[512]{ 0 };
      uint32_t current_password[64]{ 0 };
-     bool password_found = false;
+    // bool password_found = false;
     
 
      for (int k = blockIdx.x * blockDim.x + threadIdx.x;
@@ -422,7 +421,7 @@ __global__ void pbkdf2_hmac_sha256(unsigned int c,
          k += blockDim.x * gridDim.x)
      {
          
-         memcpy(current_password, password + k * 64, sizeof(uint32_t) * 64);
+         memcpy(current_password, password + k * length_password, sizeof(uint32_t) * length_password);
          
 
          password_xor_with_IPAD(current_password, length, password_xor_ipad);
@@ -459,6 +458,30 @@ __global__ void pbkdf2_hmac_sha256(unsigned int c,
 }
 
 
+__global__ void search_current_hash_in_hashes(uint32_t * search_hash_pbkdf2, uint32_t* pbkdf2_hashes, uint32_t* position_found)
+{
+  //  uint32_t temp_hash_pbkdf2[lenght_hash]{ 0 };
+    //auto flag = false;
+
+    for (int k = blockIdx.x * blockDim.x + threadIdx.x;
+        k < count_passwords*lenght_hash;
+        k += blockDim.x * gridDim.x)
+    {
+      //  memcpy(temp_hash_pbkdf2, pbkdf2_hashes + blockIdx.x * lenght_hash, sizeof(uint32_t) * lenght_hash);
+        
+        if (pbkdf2_hashes[k] != search_hash_pbkdf2[threadIdx.x])
+        {
+           position_found[blockIdx.x] = count_passwords;
+          // flag = true;
+        }
+      //  printf("\npos=%d", position_found[43]);
+        if (position_found[blockIdx.x] == 0)
+        {
+            position_found[0] = blockIdx.x;
+        }
+      
+    }
+}
 
 
 
@@ -476,22 +499,7 @@ __global__ void pbkdf2_hmac_sha256(unsigned int c,
 //    return str;
 //};
 
-void str_to_binary(std::string pass, int *output_binary)
-{
-    int ascii_number_of_letter = 0;
-    size_t count = pass.size() * 8;
-    for (size_t i = 0; i < pass.size(); ++i)
-    {
-        ascii_number_of_letter = (int)(pass[i]);
-        while (ascii_number_of_letter != 0)
-        {
-            output_binary[count] = ascii_number_of_letter % 2;
-            ascii_number_of_letter /= 2;
-            count--;
-        }
-    }
 
-}
 
 int main()
 {
@@ -557,24 +565,30 @@ int main()
 
 
 
-    uint32_t password_xor_with_ipad[512]{ 0 };
-    uint32_t password_xor_with_opad[512]{ 0 };
-    uint32_t pbkdf2_hash[count_passwords * 256]{ 0 };
-    uint32_t search_hash_pbkdf2[256]{ 0,0,1,1,1,1,0,0,0,1,1,1,0,1,0,1,0,0,1,1,0,1,1,0,1,1,0,0,1,
+
+    uint32_t pbkdf2_hash[count_passwords * lenght_hash]{ 0 };
+    uint32_t search_hash_pbkdf2[lenght_hash]{ 0,0,1,1,1,1,0,0,0,1,1,1,0,1,0,1,0,0,1,1,0,1,1,0,1,1,0,0,1,
         1,0,0,1,0,1,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,0,0,1,0,1,1,0,0,1,1,0,1,0,1,1,1,1,0,1,0,0,1,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,
         0,1,1,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,1,0,0,0,0,1,0,0,0,1,0,1,1,1,0,1,1,1,0,0,0,1,1,0,0,1,1,1,0,1,1,0,1,0,0,1,1,0,1,0,1,
         0,1,0,1,1,1,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,0,0,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,1,0,0,1,0,1,0,0,0,0,
         0,0,0,1,0,0,1,0,1,0,0,1,1,0,0,1,0,0,1,1,1,0,0,1,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,0,0, };
-    uint32_t found_password[64]{ 0 };
+    uint32_t found_password[length_password]{ 0 };
+    uint32_t hash_found[lenght_hash]{ 0 };
+    uint32_t* position_found[1]{ 0 };
     uint32_t* dev_password_xor_with_ipad = nullptr;
     uint32_t* dev_password_xor_with_opad = nullptr;
     uint32_t* dev_pbkdf2_hash = nullptr;
     uint32_t* dev_search_hash_pbkdf2 = nullptr;
     uint32_t* dev_salt = nullptr;
     uint32_t* dev_binary_password = nullptr;
+    uint32_t* dev_hash_found = nullptr;
+    uint32_t* dev_position_found = nullptr;
 
-    cudaDeviceProp deviceProp;
+    /*cudaDeviceProp deviceProp;*/
     cudaError_t cudaStatus;
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
@@ -584,44 +598,32 @@ int main()
     /*cudaGetDeviceProperties(&deviceProp, 0);
     std::cout << deviceProp.maxThreadsPerBlock << std::endl;
     std::cout << std::hex<<deviceProp.maxThreadsDim << std::endl;*/
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    
 
-    cudaStatus = cudaMalloc((void**)&dev_binary_password, 64 * count_passwords * sizeof(uint32_t));
+    cudaStatus = cudaMalloc((void**)&dev_binary_password, length_password * count_passwords * sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         //goto Error;
     }
-    cudaStatus = cudaMemcpy(dev_binary_password, binary_passwords, 64 * count_passwords * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(dev_binary_password, binary_passwords, length_password * count_passwords * sizeof(uint32_t), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_pbkdf2_hash, count_passwords * 256 * sizeof(uint32_t));
+        cudaStatus = cudaMalloc((void**)&dev_pbkdf2_hash, count_passwords * lenght_hash * sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMemcpy(dev_pbkdf2_hash, pbkdf2_hash, count_passwords * 256 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(dev_pbkdf2_hash, pbkdf2_hash, count_passwords * lenght_hash * sizeof(uint32_t), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_search_hash_pbkdf2, 256 * sizeof(uint32_t));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        //goto Error;
-    }
-    cudaStatus = cudaMemcpy(dev_search_hash_pbkdf2, search_hash_pbkdf2, 256 * sizeof(uint32_t), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
+   
     cudaStatus = cudaMalloc((void**)&dev_salt, 256 * sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
@@ -635,14 +637,9 @@ int main()
     }
 
 
-
-
-    cudaEventRecord(start);
-    
-
     pbkdf2_hmac_sha256 << <count_passwords, 1 >> > (count_iterations,
         dev_binary_password, 8, dev_salt, dev_search_hash_pbkdf2, dev_pbkdf2_hash);
-    cudaEventRecord(stop);
+
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
@@ -653,28 +650,90 @@ int main()
         fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
-    
-
-
-
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-
-
-    cudaStatus = cudaMemcpy(pbkdf2_hash, dev_pbkdf2_hash, count_passwords * 256 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+ 
+    cudaStatus = cudaMalloc((void**)&dev_position_found, sizeof(uint32_t));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }
+    cudaStatus = cudaMemcpy(dev_position_found, position_found, sizeof(uint32_t), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&dev_search_hash_pbkdf2, lenght_hash * sizeof(uint32_t));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }
+    cudaStatus = cudaMemcpy(dev_search_hash_pbkdf2, search_hash_pbkdf2, lenght_hash * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!");
+        goto Error;
+    }
+
+    
+    cudaEventRecord(start);
+
+   search_current_hash_in_hashes << <count_passwords, lenght_hash >> > (dev_search_hash_pbkdf2, dev_pbkdf2_hash, dev_position_found);
+
+    cudaEventRecord(stop);
+
+
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel %s!\n", cudaStatus, cudaGetErrorString(cudaStatus));
+        goto Error;
+    }
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+        goto Error;
+    }
+
+    cudaEventRecord(stop);
+    cudaStatus = cudaMemcpy(position_found, dev_position_found, sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!");
+        goto Error;
+    }
+
+
     cudaEventSynchronize(stop);
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
     std::cout << "milliseconds=" << milliseconds << std::endl;
-    auto found_pass = false;
-    uint32_t temp_hash[256]{ 0 };
+
+   
 
 
+   
+  //  std::cout << "position=" << int(position_found[0]) << std::endl;
+    if ((int)position_found[0] == count_passwords)
+    {
+        std::cout << "password not found" << std::endl;
+    }
+    else
+    {
+        std::cout << "position=" << int(position_found[0]) << std::endl;
+        std::cout << "password" << std::endl;
+        for (auto i = int(position_found[0]) * 8; i < int(position_found[0]) * 8 + 8; ++i)
+        {
+            std::cout << list_of_passwords[i];
+        }
+        std::cout << std::endl;
+    }
+    /*cudaStatus = cudaMemcpy(pbkdf2_hash, dev_pbkdf2_hash, count_passwords * 256 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+     if (cudaStatus != cudaSuccess) {
+         fprintf(stderr, "cudaMemcpy failed!");
+         goto Error;
+     }
+
+   
+     auto found_pass = false;
+     uint32_t temp_hash[256]{ 0 };
+    auto t1 = std::chrono::high_resolution_clock::now();
     for (auto i = 0; i < count_passwords; ++i)
     {
         memcpy(temp_hash, pbkdf2_hash + i * 256, sizeof(uint32_t) * 256);
@@ -699,31 +758,37 @@ int main()
         
 
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "CPU time: "
+        << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
+        << "ms" << std::endl;
+
+
     if (found_pass == false)
     {
         std::cout << "password not found" << std::endl;
-    }
-    std::cout << std::endl;
-    std::cout << "Hashes" << std::endl;
-    for (auto i = 0; i < count_passwords * 256; ++i)
-    {
+    }*/
+    //std::cout << std::endl;
+    //std::cout << "Hashes" << std::endl;
+    //for (auto i = 0; i < count_passwords * 256; ++i)
+    //{
 
-        if ((i % 256) == 0)
-        {
-            std::cout << std::endl;
-            std::cout << "count i=" << i / (256) << " ";
-            std::cout << pbkdf2_hash[i];
-            // std::cout << std::endl;
-        }
-        else
-        {
-            std::cout << pbkdf2_hash[i];
-        }
+    //    if ((i % 256) == 0)
+    //    {
+    //        std::cout << std::endl;
+    //        std::cout << "count i=" << i / (256) << " ";
+    //        std::cout << pbkdf2_hash[i];
+    //        // std::cout << std::endl;
+    //    }
+    //    else
+    //    {
+    //        std::cout << pbkdf2_hash[i];
+    //    }
 
 
-        // std::cout << std::endl;
-    }
-    std::cout << std::endl;
+    ////    // std::cout << std::endl;
+    //}
+    //std::cout << std::endl;
 
 
     cudaStatus = cudaDeviceReset();
@@ -731,19 +796,19 @@ int main()
         fprintf(stderr, "cudaDeviceReset failed!");
         return 1;
     }
-        cudaFree(dev_password_xor_with_ipad);
-        cudaFree(dev_password_xor_with_opad);
-        cudaFree(dev_pbkdf2_hash);
-        cudaFree(dev_salt);
-        cudaFree(dev_binary_password);
+    cudaFree(dev_password_xor_with_ipad);
+    cudaFree(dev_password_xor_with_opad);
+    cudaFree(dev_pbkdf2_hash);
+    cudaFree(dev_salt);
+    cudaFree(dev_binary_password);
 
-        return 0;
-    Error:
-        cudaFree(dev_password_xor_with_ipad);
-        cudaFree(dev_password_xor_with_opad);
-        cudaFree(dev_pbkdf2_hash);
-        cudaFree(dev_salt);
-        cudaFree(dev_binary_password);
+    return 0;
+Error:
+    cudaFree(dev_password_xor_with_ipad);
+    cudaFree(dev_password_xor_with_opad);
+    cudaFree(dev_pbkdf2_hash);
+    cudaFree(dev_salt);
+    cudaFree(dev_binary_password);
 
-    
+
 }
