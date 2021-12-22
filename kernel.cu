@@ -475,7 +475,7 @@ __global__ void search_current_hash_in_hashes(uint32_t * search_hash_pbkdf2, uin
             position_found[0] = blockIdx.x;
         }
 
-        k += blockDim.x * gridDim.x;
+        
     }
 }
 
