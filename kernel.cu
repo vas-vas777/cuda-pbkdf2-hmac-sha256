@@ -10,7 +10,7 @@
 #include <chrono>
 
 
-constexpr auto count_passwords = 100;
+constexpr auto count_passwords = 400;
 constexpr auto count_iterations = 10;
 constexpr auto length_password = 64;
 constexpr auto lenght_hash = 256;
@@ -460,26 +460,22 @@ __global__ void pbkdf2_hmac_sha256(unsigned int c,
 
 __global__ void search_current_hash_in_hashes(uint32_t * search_hash_pbkdf2, uint32_t* pbkdf2_hashes, uint32_t* position_found)
 {
-  //  uint32_t temp_hash_pbkdf2[lenght_hash]{ 0 };
-    //auto flag = false;
-
+    
+    
     for (int k = blockIdx.x * blockDim.x + threadIdx.x;
-        k < count_passwords*lenght_hash;
+        k < count_passwords * lenght_hash;
         k += blockDim.x * gridDim.x)
     {
-      //  memcpy(temp_hash_pbkdf2, pbkdf2_hashes + blockIdx.x * lenght_hash, sizeof(uint32_t) * lenght_hash);
-        
         if (pbkdf2_hashes[k] != search_hash_pbkdf2[threadIdx.x])
         {
-           position_found[blockIdx.x] = count_passwords;
-          // flag = true;
+            position_found[blockIdx.x] = count_passwords;
         }
-      //  printf("\npos=%d", position_found[43]);
         if (position_found[blockIdx.x] == 0)
         {
             position_found[0] = blockIdx.x;
         }
-      
+
+        k += blockDim.x * gridDim.x;
     }
 }
 
@@ -575,8 +571,8 @@ int main()
     uint32_t found_password[length_password]{ 0 };
     uint32_t hash_found[lenght_hash]{ 0 };
     uint32_t* position_found[1]{ 0 };
-    uint32_t* dev_password_xor_with_ipad = nullptr;
-    uint32_t* dev_password_xor_with_opad = nullptr;
+    /*uint32_t* dev_password_xor_with_ipad = nullptr;
+    uint32_t* dev_password_xor_with_opad = nullptr;*/
     uint32_t* dev_pbkdf2_hash = nullptr;
     uint32_t* dev_search_hash_pbkdf2 = nullptr;
     uint32_t* dev_salt = nullptr;
@@ -636,9 +632,11 @@ int main()
         goto Error;
     }
 
-
+    cudaEventRecord(start);
     pbkdf2_hmac_sha256 << <count_passwords, 1 >> > (count_iterations,
         dev_binary_password, 8, dev_salt, dev_search_hash_pbkdf2, dev_pbkdf2_hash);
+    cudaEventRecord(stop);
+  //  cudaEventRecord(stop);
 
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
@@ -650,6 +648,15 @@ int main()
         fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
+
+   // cudaEventRecord(stop);
+   
+
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    std::cout << "milliseconds_hash_compute=" << milliseconds << std::endl;
+   
  
     cudaStatus = cudaMalloc((void**)&dev_position_found, sizeof(uint32_t));
     if (cudaStatus != cudaSuccess) {
@@ -672,7 +679,8 @@ int main()
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
-
+  //  cudaEventCreate(&start);
+  //  cudaEventCreate(&stop);
     
     cudaEventRecord(start);
 
@@ -692,18 +700,20 @@ int main()
         goto Error;
     }
 
-    cudaEventRecord(stop);
+   // cudaEventRecord(stop);
     cudaStatus = cudaMemcpy(position_found, dev_position_found, sizeof(uint32_t), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
+    //cudaEvent_t start, stop;
+    
 
 
     cudaEventSynchronize(stop);
-    float milliseconds = 0;
+    milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    std::cout << "milliseconds=" << milliseconds << std::endl;
+    std::cout << "milliseconds_search=" << milliseconds << std::endl;
 
    
 
@@ -796,19 +806,22 @@ int main()
         fprintf(stderr, "cudaDeviceReset failed!");
         return 1;
     }
-    cudaFree(dev_password_xor_with_ipad);
-    cudaFree(dev_password_xor_with_opad);
+    /*cudaFree(dev_password_xor_with_ipad);
+    cudaFree(dev_password_xor_with_opad);*/
     cudaFree(dev_pbkdf2_hash);
     cudaFree(dev_salt);
     cudaFree(dev_binary_password);
-
+    cudaFree(dev_hash_found);
+    cudaFree(dev_position_found);
+    //cudaFree(dev)
     return 0;
 Error:
-    cudaFree(dev_password_xor_with_ipad);
-    cudaFree(dev_password_xor_with_opad);
+    /*cudaFree(dev_password_xor_with_ipad);
+    cudaFree(dev_password_xor_with_opad);*/
     cudaFree(dev_pbkdf2_hash);
     cudaFree(dev_salt);
     cudaFree(dev_binary_password);
-
+    cudaFree(dev_hash_found);
+    cudaFree(dev_position_found);
 
 }
